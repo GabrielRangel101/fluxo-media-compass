@@ -277,6 +277,13 @@ function metric(ds: Dataset, q: string): AiAnswer {
     const ok = CHANNELS.filter((c) => (rowFor(matRows, c).roas90 ?? 0) >= 1), no = CHANNELS.filter((c) => (rowFor(matRows, c).roas90 ?? 0) < 1);
     head = `${ok.length ? `${ok.map((c) => CHANNEL_LABEL[c]).join(", ")} pag${ok.length > 1 ? "am" : "a"} o próprio custo em 90 dias (ROAS de 1,00× ou mais)` : "Nenhum canal paga o próprio custo em 90 dias"}${no.length ? `; ${no.map((c) => CHANNEL_LABEL[c]).join(" e ")} não` : ""}. No total pago, o ROAS D90 é ${x2(pick(tot, totM))}`;
   }
+  const days = Math.round((Date.parse(`${per.range.to}T00:00:00Z`) - Date.parse(`${per.range.from}T00:00:00Z`)) / 86400000) + 1;
+  const perDay = /por dia|diari|media/.test(n) && (key === "installs" || key === "spend") && !per.empty && days > 0;
+  if (perDay) {
+    const total = (one ? rowFor(rows, one) : tot)[key];
+    head = `${subject}: média de ${key === "installs" ? `${n0(total / days)} instalações` : brl0(total / days)} por dia (${key === "installs" ? n0(total) : brl0(total)} em ${days} dias`;
+    head += ")";
+  }
   return {
     intent: "metrica", title: `${name} ${per.label}`, text: `${head}${key === "roas" || key === "cac" ? "" : ` ${per.label}`}.${immature}${notice}`,
     basedOn: ["Visão geral", "Canais"], sql: ["01_channel_summary.sql"], cards,
@@ -455,7 +462,9 @@ function curve(ds: Dataset): AiAnswer {
 // ------------------------------------------------------------------ roteador
 const DOMAIN = /\b(canal|canais|midia|verba|gasto|invest\w*|instal\w*|cpi|cpa|cac|roas|ltv|cpm|ctr|cadastr\w*|funil|ativa\w*|kyc|cartao|teste\w*|a\/?b|srm|variante|criativo|coleta|tracking|evento\w*|tagbook|utm|ga4|gtm|appsflyer|mmp|atribuic\w*|campanha\w*|ios|android|plataforma|dado\w*|painel|dashboard|metrica\w*|orcamento|retorno|custo\w*|conversao|alerta\w*|insight\w*|simul\w*|curva|coorte|resumo|google|meta|tiktok|linkedin|dv ?360|youtube|facebook|instagram|receita|usuario\w*|app|sdk|quebrad\w*|reconcilia\w*|razao|mapa|quadrante|tagbook|marginal|t[1-9])\b/;
 
-export function aiAnswer(ds: Dataset, question: string): AiAnswer {
+export function aiAnswer(ds: Dataset, question: string, prev?: string): AiAnswer {
+  // pergunta curta de continuação ("por dia", "e no Meta?"): herda o assunto da pergunta anterior
+  if (prev && !DOMAIN.test(norm(question)) && norm(question).length > 1 && norm(question).split(" ").length <= 4 && !/\b(qual|quem|quando|onde|capital|receita de|clima|tempo)\b/.test(norm(question))) return aiAnswer(ds, `${prev} ${question}`);
   const q = question.trim();
   const n = norm(q);
   if (n.length < 2 || n === "?") return summary(ds);

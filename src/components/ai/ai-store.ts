@@ -62,6 +62,7 @@ export const aiStore = {
   ask(question: string, display?: string) {
     const q = question.trim();
     if (!q || state.busy) return;
+    const prevQ = [...state.exchanges].reverse().find((e) => e.answer && e.answer.intent !== "fora_de_escopo")?.question;
     const id = ++job;
     const entry: AiExchange = { id, question: q, display: display ?? q, focusId: state.focusId };
     set((s) => ({ busy: true, error: "", exchanges: [...s.exchanges, entry].slice(-20) }));
@@ -69,7 +70,7 @@ export const aiStore = {
     const run = () => {
       if (job !== id) return;
       try {
-        const result = getAiAnswer(q); // cacheado; fora da renderização
+        const result = getAiAnswer(q, prevQ); // cacheado; fora da renderização
         globalThis.setTimeout(() => {
           if (job !== id) return;
           set((s) => ({ busy: false, exchanges: s.exchanges.map((e) => (e.id === id ? { ...e, answer: result } : e)) }));

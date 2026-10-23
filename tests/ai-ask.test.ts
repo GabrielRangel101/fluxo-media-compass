@@ -65,3 +65,11 @@ test("toda resposta traz próximos passos e fonte SQL quando usa dados", () => {
     assert.ok(a.sql.length > 0, q);
   }
 });
+
+test("média por dia e pergunta de continuação", () => {
+  const a = aiAnswer(ds, "qual é a nossa média de instalações por dia?");
+  assert.match(a.text, /por dia/);
+  const b = aiAnswer(ds, "por dia", "Instalações nos últimos 28 dias");
+  assert.notEqual(b.intent, "fora_de_escopo");
+  assert.equal(aiAnswer(ds, "qual a capital da França?", "Instalações").intent, "fora_de_escopo");
+});

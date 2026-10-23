@@ -146,12 +146,13 @@ export const isAiTarget = (id: string | undefined): id is AiTargetId => !!id && 
 
 const answerCache = new Map<string, AiAnswer>();
 /** Chamado só de uma tarefa agendada do navegador; os componentes de IA não fazem conta de negócio. */
-export function getAiAnswer(question: string): AiAnswer {
-  const hit = answerCache.get(question);
+export function getAiAnswer(question: string, prev?: string): AiAnswer {
+  const key = `${prev ?? ""}\u0000${question}`;
+  const hit = answerCache.get(key);
   if (hit) return hit;
-  const result = aiAnswer(getDashboardData().ds, question);
+  const result = aiAnswer(getDashboardData().ds, question, prev);
   if (answerCache.size >= 60) answerCache.delete(answerCache.keys().next().value ?? "");
-  answerCache.set(question, result);
+  answerCache.set(key, result);
   return result;
 }
 
