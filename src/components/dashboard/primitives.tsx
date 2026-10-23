@@ -1,4 +1,5 @@
 import { useSize } from "@/hooks/use-size";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Database, Info } from "lucide-react";
@@ -60,9 +61,9 @@ export function Panel({
   id?: string; title: string; info?: ReactNode; sql?: string; actions?: ReactNode; className?: string; children: ReactNode;
 }) {
   return (
-    <section id={id} className={cn("scroll-mt-24 rounded-xl border bg-card p-4 text-card-foreground shadow-sm", className)}>
-      <header className="mb-3 flex min-h-6 items-center gap-2">
-        <h2 className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{title}</h2>
+    <section id={id} className={cn("scroll-mt-24 rounded-2xl border bg-card p-5 text-card-foreground", className)}>
+      <header className="mb-4 flex min-h-7 items-center gap-2">
+        <h2 className="font-display truncate text-[17px] font-semibold tracking-tight text-foreground">{title}</h2>
         {info ? <InfoTip text={info} /> : null}
         <div className="ml-auto flex items-center gap-2">
           {actions}
@@ -90,33 +91,57 @@ export function Spark({ values, className }: { values: number[]; className?: str
   const min = Math.min(...v), max = Math.max(...v), span = max - min || 1;
   const pts = v.map((y, i) => [pad + (i / (v.length - 1)) * (W - pad * 2), H - pad - ((y - min) / span) * (H - pad * 2)] as const);
   const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-  const [lx, ly] = pts[pts.length - 1]!;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className={cn("h-8 w-24 text-primary", className)} aria-hidden>
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={cn("h-7 w-full text-primary", className)} aria-hidden>
       <path d={`${d} L${pts[pts.length - 1]![0]} ${H} L${pts[0]![0]} ${H} Z`} fill="currentColor" opacity={0.1} />
-      <path d={d} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={lx} cy={ly} r={2.5} fill="currentColor" stroke="var(--card)" strokeWidth={1.5} />
+      <path d={d} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
 
+/** Contagem animada 0 → valor, uma vez por montagem; respeita prefers-reduced-motion. */
+function useCountUp(target: number | undefined, delayMs: number) {
+  const [v, setV] = useState<number | undefined>(target);
+  useEffect(() => {
+    if (target === undefined) { setV(target); return; }
+    let reduce = false;
+    try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { /* sem matchMedia */ }
+    if (reduce) { setV(target); return; }
+    setV(0);
+    let raf = 0;
+    const t0 = performance.now() + delayMs;
+    const dur = 900;
+    const tick = (now: number) => {
+      const k = Math.min(Math.max((now - t0) / dur, 0), 1);
+      setV(target * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, delayMs]);
+  return v;
+}
+
 export function Kpi({
-  label, value, change, good, hint, info, spark,
+  label, value, num, format, index = 0, change, good, hint, info, spark,
 }: {
-  label: string; value: string; change?: number | null; good?: "up" | "down" | "none"; hint?: string; info?: ReactNode; spark?: number[];
+  label: string; value: string; num?: number; format?: (n: number) => string; index?: number;
+  change?: number | null; good?: "up" | "down" | "none"; hint?: string; info?: ReactNode; spark?: number[];
 }) {
+  const shown = useCountUp(num, index * 70);
+  const text = num !== undefined && format && shown !== undefined ? format(shown) : value;
   return (
-    <div className="relative flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl border bg-card p-3.5 shadow-sm">
-      {spark ? <Spark values={spark} className="absolute right-3 top-3.5 opacity-90" /> : null}
+    <div className="kpi-in relative flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl border bg-card p-4" style={{ ["--i" as string]: index }}>
       <div className="flex items-center gap-1.5">
-        <span className="truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</span>
+        <span className="truncate text-[13px] font-medium text-muted-foreground">{label}</span>
         {info ? <InfoTip text={info} /> : null}
       </div>
-      <div className="tnum text-2xl font-semibold leading-tight tracking-tight">{value}</div>
+      <div className="font-display tnum text-[30px] font-semibold leading-none tracking-tight"><span className="sr-only">{value}</span><span aria-hidden>{text}</span></div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         {change !== undefined ? <DeltaPill change={change} good={good} /> : null}
         {hint ? <span className="truncate">{hint}</span> : null}
       </div>
+      {spark ? <Spark values={spark} className="mt-1" /> : null}
     </div>
   );
 }
@@ -139,9 +164,9 @@ export function DataTable({ head, children, className }: { head: ReactNode[]; ch
     <div className={cn("overflow-x-auto", className)}>
       <table className="w-full min-w-[34rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <tr className="border-b text-left text-xs font-medium text-muted-foreground">
             {head.map((h, i) => (
-              <th key={i} className={cn("whitespace-nowrap px-2 py-2 font-semibold first:pl-0 last:pr-0", i > 0 && "text-right")}>
+              <th key={i} className={cn("whitespace-nowrap px-2 py-2 font-medium first:pl-0 last:pr-0", i > 0 && "text-right")}>
                 {h}
               </th>
             ))}
@@ -154,6 +179,8 @@ export function DataTable({ head, children, className }: { head: ReactNode[]; ch
 }
 
 export const chart = {
+  /** cursor vertical tracejado para gráficos de linha/área (hover mostra todas as séries do mesmo dia) */
+  crosshair: { stroke: "var(--muted-foreground)", strokeWidth: 1, strokeDasharray: "3 3" },
   grid: "var(--chart-grid)",
   tick: { fill: "var(--muted-foreground)", fontSize: 11 },
   tooltip: {
@@ -170,5 +197,41 @@ export function SizedChart({ children, className }: { children: (w: number, h: n
     <div ref={ref} className={cn("h-full w-full", className)}>
       {size.w > 0 && size.h > 0 ? children(size.w, size.h) : null}
     </div>
+  );
+}
+
+/** Legenda de gráfico: obrigatória com 2+ séries. A cor identifica; o texto fica em tinta de texto. */
+export function Legend({ items, className }: { items: { label: string; color: string; kind?: "bar" | "line" | "dash" | "dot" }[]; className?: string }) {
+  return (
+    <ul className={cn("flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground", className)}>
+      {items.map((it) => (
+        <li key={it.label} className="inline-flex items-center gap-1.5">
+          <svg width="16" height="8" aria-hidden>
+            {it.kind === "bar" ? <rect x="2" y="0" width="12" height="8" rx="2" fill={it.color} opacity="0.7" />
+              : it.kind === "dot" ? <circle cx="8" cy="4" r="3.5" fill={it.color} />
+              : <line x1="0" x2="16" y1="4" y2="4" stroke={it.color} strokeWidth="2.25" strokeLinecap="round" strokeDasharray={it.kind === "dash" ? "4 3" : undefined} />}
+          </svg>
+          {it.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Alternativa em tabela para um gráfico (acessibilidade: o dado nunca depende só da cor). */
+export function DataDetails({ head, rows, label = "Ver os dados em tabela" }: { head: string[]; rows: string[][]; label?: string }) {
+  return (
+    <details className="group mt-3 text-sm">
+      <summary className="inline-flex cursor-pointer select-none items-center gap-1 rounded-md px-1 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+        {label}
+      </summary>
+      <div className="mt-2 max-h-64 overflow-auto">
+        <DataTable head={head}>
+          {rows.map((r, i) => (
+            <tr key={i}>{r.map((c, j) => (<td key={j} className="tnum whitespace-nowrap">{c}</td>))}</tr>
+          ))}
+        </DataTable>
+      </div>
+    </details>
   );
 }

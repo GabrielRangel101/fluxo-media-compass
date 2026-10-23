@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, Scatter, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelTag, DataTable, Kpi, Panel, channelColor, chart, SizedChart } from "@/components/dashboard/primitives";
+import { ChannelTag, DataTable, Kpi, Panel, channelColor, chart, SizedChart, Legend } from "@/components/dashboard/primitives";
 import { fmtBRL, fmtBRLCompact, fmtInt, fmtPct, fmtSignedInt } from "@/lib/format";
 import { curveSeries, simulate } from "@/lib/dashboard-data";
 import type { DashboardData } from "@/lib/dashboard-data";
@@ -88,6 +88,7 @@ function ResponseCurve({ data }: { data: DashboardData }) {
         </select>
       }
     >
+      <Legend className="mb-2" items={[{ label: "Dias observados", color: channelColor(channel), kind: "dot" }, { label: "Curva ajustada", color: "var(--foreground)", kind: "line" }]} />
       <div className="h-56">
         <SizedChart>{(w, h) => (<>
           <ComposedChart width={w} height={h} margin={{ top: 4, right: 8, bottom: 16, left: 0 }}>

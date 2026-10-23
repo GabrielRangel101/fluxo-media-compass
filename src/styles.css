@@ -10,7 +10,8 @@
  */
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -80,12 +81,13 @@
   --chart-grid: hsl(220 20% 12% / 0.09);
 
   /* categorias = canais, nesta ordem: Google, Meta, TikTok, LinkedIn, DV360, orgânico */
-  --cat-1: hsl(217 78% 46%);
-  --cat-2: hsl(262 58% 52%);
-  --cat-3: hsl(336 68% 48%);
-  --cat-4: hsl(190 80% 32%);
-  --cat-5: hsl(34 88% 42%);
-  --cat-6: hsl(220 10% 50%);
+  /* validada com validate_palette.js (claro, superfície #fff): lightness, croma, CVD e piso de visão normal passam */
+  --cat-1: #2a78d6;
+  --cat-2: #eb6834;
+  --cat-3: #1baf7a;
+  --cat-4: #eda100;
+  --cat-5: #e87ba4;
+  --cat-6: #898781;
 }
 
 /* Tema escuro (opcional, persistido) */
@@ -118,12 +120,13 @@
   --ring: hsl(166 62% 52%);
   --chart-grid: hsl(210 25% 94% / 0.1);
 
-  --cat-1: hsl(217 90% 68%);
-  --cat-2: hsl(262 80% 72%);
-  --cat-3: hsl(336 82% 68%);
-  --cat-4: hsl(188 72% 54%);
-  --cat-5: hsl(38 92% 58%);
-  --cat-6: hsl(215 12% 62%);
+  /* validada no escuro (superfície do card #171c26) */
+  --cat-1: #3987e5;
+  --cat-2: #d95926;
+  --cat-3: #199e70;
+  --cat-4: #c98500;
+  --cat-5: #d55181;
+  --cat-6: #898781;
 }
 
 @layer base {
@@ -148,6 +151,23 @@
 
 .tnum {
   font-variant-numeric: tabular-nums;
+}
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+/* Entrada dos KPIs: um único momento orquestrado na carga da aba (escalonado pelo índice --i) */
+@keyframes kpi-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.kpi-in {
+  animation: kpi-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kpi-in { animation: none; }
 }
 
 /* destaque ao navegar de um insight para um card */

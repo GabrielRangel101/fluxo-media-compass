@@ -15,9 +15,9 @@ export function AppShell({ view, brand, refLabel, brokenCount, children }: { vie
         <div className="mx-auto flex w-full max-w-[1400px] items-center gap-3 px-3 py-2.5 sm:px-5">
           <img src="/logo.svg" alt="" width={34} height={34} className="size-[34px] shrink-0 rounded-lg" />
           <div className="mr-auto flex min-w-0 flex-col">
-            <span className="truncate text-lg font-semibold leading-none tracking-tight">{brand} · Media Compass</span>
+            <span className="font-display truncate text-xl font-semibold leading-none tracking-tight">{brand} Media Compass</span>
             <span className="mt-1 hidden truncate text-[11px] text-muted-foreground sm:block">
-              Mídia, aquisição de app e saúde da coleta · dados sintéticos · ref. {refLabel}
+              Mídia, aquisição de app e saúde da coleta. Dados sintéticos até {refLabel}.
             </span>
           </div>
           <button

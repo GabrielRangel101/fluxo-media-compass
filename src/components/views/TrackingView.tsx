@@ -124,7 +124,7 @@ export function TrackingView({ data }: { data: DashboardData }) {
                 <CartesianGrid stroke={chart.grid} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={dm} tick={chart.tick} tickLine={false} axisLine={false} minTickGap={28} />
                 <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={40} domain={[0, "auto"]} tickFormatter={(v: number) => v.toFixed(2).replace(".", ",")} />
-                <Tooltip {...chart.tooltip} labelFormatter={(d: string) => dm(d)} formatter={(v: number) => [r3(v), "Razão"]} />
+                <Tooltip {...chart.tooltip} cursor={chart.crosshair} labelFormatter={(d: string) => dm(d)} formatter={(v: number) => [r3(v), "Razão"]} />
                 {base > 0 ? <ReferenceLine y={base} stroke="var(--muted-foreground)" strokeDasharray="4 4" /> : null}
                 {base > 0 ? <ReferenceLine y={base * 0.65} stroke="var(--danger)" strokeOpacity={0.5} strokeDasharray="2 4" /> : null}
                 {base > 0 ? <ReferenceLine y={base * 1.35} stroke="var(--danger)" strokeOpacity={0.5} strokeDasharray="2 4" /> : null}

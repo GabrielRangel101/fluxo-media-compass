@@ -22,7 +22,7 @@ export function TagbookView({ data }: { data: DashboardData }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[56rem] border-collapse text-sm">
             <thead>
-              <tr className="border-b text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+              <tr className="border-b text-left text-xs font-medium text-muted-foreground">
                 {["Evento", "Onde", "Gatilho", "Parâmetros", "Conversão", "Destinos", "Dono", "Referência de qualidade", "Status"].map((h) => (
                   <th key={h} className="px-2 py-2 font-semibold first:pl-0 last:pr-0">{h}</th>
                 ))}

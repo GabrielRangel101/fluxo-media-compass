@@ -1,5 +1,5 @@
 import { Bar, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelTag, DataTable, DeltaPill, Kpi, Panel, chart, SizedChart } from "@/components/dashboard/primitives";
+import { ChannelTag, DataDetails, DataTable, DeltaPill, Kpi, Legend, Panel, chart, SizedChart } from "@/components/dashboard/primitives";
 import { CostReturnChart } from "@/components/dashboard/CostReturnChart";
 import { useGoToCard } from "@/components/shell/use-go-to-card";
 import { fmtBRL, fmtBRLCompact, fmtInt, fmtPct } from "@/lib/format";
@@ -31,23 +31,39 @@ export function OverviewView({ data }: { data: DashboardData }) {
         <button
           type="button"
           onClick={() => go(headline.view, headline.target)}
-          className="group flex w-full items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-left transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-ring"
+          className="group relative flex w-full flex-col gap-3 overflow-hidden rounded-[20px] bg-[hsl(222_42%_10%)] p-6 text-left text-[hsl(210_25%_95%)] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-ring sm:flex-row sm:items-end sm:gap-8 sm:p-7"
         >
-          <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-danger" aria-hidden />
-          <span className="min-w-0">
-            <span className="block text-base font-semibold leading-snug">{headline.title}</span>
-            <span className="mt-1 block max-w-[78ch] text-sm leading-relaxed text-muted-foreground">{headline.detail}</span>
+          <span aria-hidden className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-[hsl(4_82%_60%)] opacity-[0.14] blur-3xl" />
+          <span className="relative min-w-0 flex-1">
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-[hsl(4_82%_60%/0.16)] px-2.5 py-1 text-xs font-semibold text-[hsl(4_90%_76%)]">
+              <span className="size-1.5 rounded-full bg-[hsl(4_90%_70%)]" aria-hidden />
+              Achado mais grave desta semana
+            </span>
+            <span className="font-display block max-w-[28ch] text-2xl font-semibold leading-[1.15] tracking-tight sm:text-[32px]">{headline.title}</span>
+            <span className="mt-3 block max-w-[68ch] text-[15px] leading-relaxed text-[hsl(210_18%_74%)]">{headline.detail}</span>
           </span>
-          <span className="ml-auto hidden shrink-0 self-center text-xs font-medium text-danger group-hover:underline sm:block">Ver detalhe</span>
+          <span className="relative flex shrink-0 gap-6 sm:flex-col sm:gap-3 sm:text-right">
+            <span>
+              <span className="font-display tnum block text-3xl font-semibold leading-none">{data.tracking.broken}</span>
+              <span className="mt-1 block text-xs text-[hsl(210_18%_68%)]">checagens quebradas</span>
+            </span>
+            <span>
+              <span className="font-display tnum block text-3xl font-semibold leading-none">{data.tracking.warn}</span>
+              <span className="mt-1 block text-xs text-[hsl(210_18%_68%)]">em atenção</span>
+            </span>
+          </span>
         </button>
       ) : null}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Investimento" value={fmtBRLCompact(tot.spend)} change={rel(tot.spend, prev.spend)} good="none" hint="28 dias" spark={recent.map((d) => d.spend)} />
-        <Kpi label="Instalações" value={fmtInt(tot.installs)} change={rel(tot.installs, prev.installs)} good="up" hint="atribuídas (MMP)" spark={recent.map((d) => d.installs)} />
-        <Kpi label="CPI" value={fmtBRL(tot.cpi ?? 0)} change={rel(tot.cpi, prev.cpi)} good="down" hint="gasto ÷ instalações" spark={fill(recent.map((d) => d.cpi))} />
-        <Kpi label="CPA cadastro" value={fmtBRL(tot.cpaSignup ?? 0)} change={rel(tot.cpaSignup, prev.cpaSignup)} good="down" hint="gasto ÷ cadastros" spark={fill(recent.map((d) => (d.signups ? d.spend / d.signups : null)))} />
+        <Kpi label="Investimento" index={0} num={tot.spend} format={fmtBRLCompact} value={fmtBRLCompact(tot.spend)} change={rel(tot.spend, prev.spend)} good="none" hint="28 dias" spark={recent.map((d) => d.spend)} />
+        <Kpi label="Instalações" index={1} num={tot.installs} format={fmtInt} value={fmtInt(tot.installs)} change={rel(tot.installs, prev.installs)} good="up" hint="atribuídas (MMP)" spark={recent.map((d) => d.installs)} />
+        <Kpi label="CPI" index={2} num={tot.cpi ?? 0} format={fmtBRL} value={fmtBRL(tot.cpi ?? 0)} change={rel(tot.cpi, prev.cpi)} good="down" hint="gasto ÷ instalações" spark={fill(recent.map((d) => d.cpi))} />
+        <Kpi label="CPA cadastro" index={3} num={tot.cpaSignup ?? 0} format={fmtBRL} value={fmtBRL(tot.cpaSignup ?? 0)} change={rel(tot.cpaSignup, prev.cpaSignup)} good="down" hint="gasto ÷ cadastros" spark={fill(recent.map((d) => (d.signups ? d.spend / d.signups : null)))} />
         <Kpi
           label="CAC"
+          index={4}
+          num={tot.cac ?? 0}
+          format={fmtBRL}
           value={fmtBRL(tot.cac ?? 0)}
           change={rel(tot.cac, prev.cac)}
           good="down"
@@ -56,6 +72,9 @@ export function OverviewView({ data }: { data: DashboardData }) {
         />
         <Kpi
           label="ROAS D90"
+          index={5}
+          num={mat.roas90 ?? 0}
+          format={(n) => `${n.toFixed(2).replace(".", ",")}×`}
           value={`${(mat.roas90 ?? 0).toFixed(2).replace(".", ",")}×`}
           hint={`coorte ${dm(mature90.from)}–${dm(mature90.to)}`}
           info="Receita acumulada em 90 dias ÷ gasto da mesma coorte. Só existe para instalações com 90 dias completos; por isso olha para trás, não para os últimos 28 dias."
@@ -65,13 +84,14 @@ export function OverviewView({ data }: { data: DashboardData }) {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-4">
           <Panel id="card-serie" title="Investimento diário e CPI · 90 dias" sql="03_daily_series.sql" info="Dois gráficos, um eixo cada: misturar R$ de investimento com R$ de CPI em escalas diferentes engana a leitura. A linha tracejada é a média móvel de 7 dias do CPI.">
+            <Legend className="mb-2" items={[{ label: "Investimento por dia", color: "var(--cat-6)", kind: "bar" }, { label: "CPI do dia", color: "var(--muted-foreground)", kind: "line" }, { label: "CPI, média de 7 dias", color: "var(--primary)", kind: "line" }]} />
             <div className="h-28">
               <SizedChart>{(w, h) => (<>
                 <ComposedChart width={w} height={h} data={data.daily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke={chart.grid} vertical={false} />
                   <XAxis dataKey="date" hide />
                   <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => fmtBRLCompact(v)} />
-                  <Tooltip {...chart.tooltip} labelFormatter={(d: string) => dm(d)} formatter={(v: number) => [fmtBRL(v, 0), "Investimento"]} />
+                  <Tooltip {...chart.tooltip} cursor={{ fill: "var(--secondary)" }} labelFormatter={(d: string) => dm(d)} formatter={(v: number) => [fmtBRL(v, 0), "Investimento"]} />
                   <Bar dataKey="spend" name="Investimento" fill="var(--cat-6)" fillOpacity={0.55} radius={[2, 2, 0, 0]} isAnimationActive={false} />
                 </ComposedChart>
               </>)}</SizedChart>
@@ -82,18 +102,24 @@ export function OverviewView({ data }: { data: DashboardData }) {
                   <CartesianGrid stroke={chart.grid} vertical={false} />
                   <XAxis dataKey="date" tickFormatter={dm} tick={chart.tick} tickLine={false} axisLine={false} minTickGap={28} />
                   <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={48} domain={["auto", "auto"]} tickFormatter={(v: number) => fmtBRL(v, 0)} />
-                  <Tooltip {...chart.tooltip} labelFormatter={(d: string) => dm(d)} formatter={(v: number, n: string) => [fmtBRL(v), n]} />
+                  <Tooltip {...chart.tooltip} cursor={chart.crosshair} labelFormatter={(d: string) => dm(d)} formatter={(v: number, n: string) => [fmtBRL(v), n]} />
                   <Line dataKey="cpi" name="CPI do dia" stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />
                   <Line dataKey="ma7" name="CPI, média 7 dias" stroke="var(--primary)" strokeWidth={2.25} dot={false} connectNulls isAnimationActive={false} />
                 </ComposedChart>
               </>)}</SizedChart>
             </div>
+            <DataDetails
+              head={["Dia", "Investimento", "Instalações", "CPI do dia", "CPI, média 7 dias"]}
+              rows={cpiSeries.slice(-14).reverse().map((d, i) => { const x = data.daily[data.daily.length - 1 - i]!; return [dm(d.date), fmtBRL(x.spend, 0), fmtInt(x.installs), d.cpi === null ? "—" : fmtBRL(d.cpi), d.ma7 === null ? "—" : fmtBRL(d.ma7)]; })}
+              label="Ver os últimos 14 dias em tabela"
+            />
           </Panel>
 
           <Panel id="card-quadrante" title="Custo × retorno por canal" info="Cada bolha é um canal. Eixo horizontal: CPI dos últimos 28 dias. Vertical: ROAS D90 das coortes maduras. Tamanho: investimento. Abaixo da linha de 1,00× a coorte não paga o próprio custo em 90 dias. CPI baixo não garante retorno." sql="01_channel_summary.sql">
             <div className="h-72">
               <SizedChart>{(w, h) => <CostReturnChart width={w} height={h} rows={data.last} mature={data.mature} />}</SizedChart>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">Os mesmos valores, com legenda por canal, estão na tabela logo abaixo.</p>
           </Panel>
 
           <Panel

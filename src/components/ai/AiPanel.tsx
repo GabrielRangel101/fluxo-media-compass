@@ -26,7 +26,7 @@ function AnswerView({ a }: { a: Answer }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[20rem] border-collapse text-xs">
             <thead>
-              <tr className="border-b text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b text-left text-xs font-medium text-muted-foreground">
                 {a.table.head.map((h, i) => (
                   <th key={h} className={i === 0 ? "py-1.5 pr-2" : "px-2 py-1.5 text-right"}>
                     {h}
