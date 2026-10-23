@@ -1,5 +1,6 @@
 import { Bar, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
 import { ChannelTag, DataTable, DeltaPill, Kpi, Panel, chart, SizedChart } from "@/components/dashboard/primitives";
+import { CostReturnChart } from "@/components/dashboard/CostReturnChart";
 import { useGoToCard } from "@/components/shell/use-go-to-card";
 import { fmtBRL, fmtBRLCompact, fmtInt, fmtPct } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
@@ -15,14 +16,36 @@ export function OverviewView({ data }: { data: DashboardData }) {
   const prev = data.prev[data.prev.length - 1]!;
   const mat = data.mature[data.mature.length - 1]!;
   const { last28, mature90 } = data.per;
+  const recent = data.daily.slice(-28);
+  const fill = (xs: (number | null)[]) => { let lastV = 0; return xs.map((x) => (lastV = x ?? lastV)); };
+  const headline = data.insights[0];
+  const cpiSeries = data.daily.map((d, i, arr) => {
+    const win = arr.slice(Math.max(0, i - 6), i + 1).filter((x) => x.installs > 0);
+    const inst = win.reduce((a, x) => a + x.installs, 0);
+    return { date: d.date, cpi: d.cpi, ma7: inst ? win.reduce((a, x) => a + x.spend, 0) / inst : null };
+  });
 
   return (
     <div className="space-y-4">
+      {headline ? (
+        <button
+          type="button"
+          onClick={() => go(headline.view, headline.target)}
+          className="group flex w-full items-start gap-3 rounded-xl border border-danger/30 bg-danger/5 p-4 text-left transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-danger" aria-hidden />
+          <span className="min-w-0">
+            <span className="block text-base font-semibold leading-snug">{headline.title}</span>
+            <span className="mt-1 block max-w-[78ch] text-sm leading-relaxed text-muted-foreground">{headline.detail}</span>
+          </span>
+          <span className="ml-auto hidden shrink-0 self-center text-xs font-medium text-danger group-hover:underline sm:block">Ver detalhe</span>
+        </button>
+      ) : null}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Investimento" value={fmtBRLCompact(tot.spend)} change={rel(tot.spend, prev.spend)} good="none" hint="28 dias" />
-        <Kpi label="Instalações" value={fmtInt(tot.installs)} change={rel(tot.installs, prev.installs)} good="up" hint="atribuídas (MMP)" />
-        <Kpi label="CPI" value={fmtBRL(tot.cpi ?? 0)} change={rel(tot.cpi, prev.cpi)} good="down" hint="gasto ÷ instalações" />
-        <Kpi label="CPA cadastro" value={fmtBRL(tot.cpaSignup ?? 0)} change={rel(tot.cpaSignup, prev.cpaSignup)} good="down" hint="gasto ÷ cadastros" />
+        <Kpi label="Investimento" value={fmtBRLCompact(tot.spend)} change={rel(tot.spend, prev.spend)} good="none" hint="28 dias" spark={recent.map((d) => d.spend)} />
+        <Kpi label="Instalações" value={fmtInt(tot.installs)} change={rel(tot.installs, prev.installs)} good="up" hint="atribuídas (MMP)" spark={recent.map((d) => d.installs)} />
+        <Kpi label="CPI" value={fmtBRL(tot.cpi ?? 0)} change={rel(tot.cpi, prev.cpi)} good="down" hint="gasto ÷ instalações" spark={fill(recent.map((d) => d.cpi))} />
+        <Kpi label="CPA cadastro" value={fmtBRL(tot.cpaSignup ?? 0)} change={rel(tot.cpaSignup, prev.cpaSignup)} good="down" hint="gasto ÷ cadastros" spark={fill(recent.map((d) => (d.signups ? d.spend / d.signups : null)))} />
         <Kpi
           label="CAC"
           value={fmtBRL(tot.cac ?? 0)}
@@ -41,23 +64,35 @@ export function OverviewView({ data }: { data: DashboardData }) {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-4">
-          <Panel id="card-serie" title="Investimento diário e CPI · 90 dias" sql="03_daily_series.sql">
-            <div className="h-64">
+          <Panel id="card-serie" title="Investimento diário e CPI · 90 dias" sql="03_daily_series.sql" info="Dois gráficos, um eixo cada: misturar R$ de investimento com R$ de CPI em escalas diferentes engana a leitura. A linha tracejada é a média móvel de 7 dias do CPI.">
+            <div className="h-28">
               <SizedChart>{(w, h) => (<>
                 <ComposedChart width={w} height={h} data={data.daily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke={chart.grid} vertical={false} />
-                  <XAxis dataKey="date" tickFormatter={dm} tick={chart.tick} tickLine={false} axisLine={false} minTickGap={28} />
-                  <YAxis yAxisId="spend" tick={chart.tick} tickLine={false} axisLine={false} width={44} tickFormatter={(v: number) => fmtBRLCompact(v)} />
-                  <YAxis yAxisId="cpi" orientation="right" tick={chart.tick} tickLine={false} axisLine={false} width={40} tickFormatter={(v: number) => `R$${v}`} domain={["auto", "auto"]} />
-                  <Tooltip
-                    {...chart.tooltip}
-                    labelFormatter={(d: string) => dm(d)}
-                    formatter={(v: number, name: string) => [name === "CPI" ? fmtBRL(v) : fmtBRL(v, 0), name]}
-                  />
-                  <Bar yAxisId="spend" dataKey="spend" name="Investimento" fill="var(--cat-6)" fillOpacity={0.35} radius={[2, 2, 0, 0]} />
-                  <Line yAxisId="cpi" dataKey="cpi" name="CPI" stroke="var(--primary)" strokeWidth={2} dot={false} connectNulls />
+                  <XAxis dataKey="date" hide />
+                  <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => fmtBRLCompact(v)} />
+                  <Tooltip {...chart.tooltip} labelFormatter={(d: string) => dm(d)} formatter={(v: number) => [fmtBRL(v, 0), "Investimento"]} />
+                  <Bar dataKey="spend" name="Investimento" fill="var(--cat-6)" fillOpacity={0.55} radius={[2, 2, 0, 0]} isAnimationActive={false} />
                 </ComposedChart>
               </>)}</SizedChart>
+            </div>
+            <div className="h-44">
+              <SizedChart>{(w, h) => (<>
+                <ComposedChart width={w} height={h} data={cpiSeries} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                  <CartesianGrid stroke={chart.grid} vertical={false} />
+                  <XAxis dataKey="date" tickFormatter={dm} tick={chart.tick} tickLine={false} axisLine={false} minTickGap={28} />
+                  <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={48} domain={["auto", "auto"]} tickFormatter={(v: number) => fmtBRL(v, 0)} />
+                  <Tooltip {...chart.tooltip} labelFormatter={(d: string) => dm(d)} formatter={(v: number, n: string) => [fmtBRL(v), n]} />
+                  <Line dataKey="cpi" name="CPI do dia" stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />
+                  <Line dataKey="ma7" name="CPI, média 7 dias" stroke="var(--primary)" strokeWidth={2.25} dot={false} connectNulls isAnimationActive={false} />
+                </ComposedChart>
+              </>)}</SizedChart>
+            </div>
+          </Panel>
+
+          <Panel id="card-quadrante" title="Custo × retorno por canal" info="Cada bolha é um canal. Eixo horizontal: CPI dos últimos 28 dias. Vertical: ROAS D90 das coortes maduras. Tamanho: investimento. Abaixo da linha de 1,00× a coorte não paga o próprio custo em 90 dias. CPI baixo não garante retorno." sql="01_channel_summary.sql">
+            <div className="h-72">
+              <SizedChart>{(w, h) => <CostReturnChart width={w} height={h} rows={data.last} mature={data.mature} />}</SizedChart>
             </div>
           </Panel>
 

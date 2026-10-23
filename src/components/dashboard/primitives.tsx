@@ -82,13 +82,32 @@ export function DeltaPill({ change, good = "up", className }: { change: number |
   return <span className={cn("tnum text-xs font-medium", tone, className)}>{fmtSignedPct(change, 1)}</span>;
 }
 
+/** Minigráfico de tendência (SVG puro, sem eixos): contexto do KPI, não leitura de valores. */
+export function Spark({ values, className }: { values: number[]; className?: string }) {
+  const v = values.filter((x) => Number.isFinite(x));
+  if (v.length < 2) return null;
+  const W = 96, H = 32, pad = 3;
+  const min = Math.min(...v), max = Math.max(...v), span = max - min || 1;
+  const pts = v.map((y, i) => [pad + (i / (v.length - 1)) * (W - pad * 2), H - pad - ((y - min) / span) * (H - pad * 2)] as const);
+  const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const [lx, ly] = pts[pts.length - 1]!;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className={cn("h-8 w-24 text-primary", className)} aria-hidden>
+      <path d={`${d} L${pts[pts.length - 1]![0]} ${H} L${pts[0]![0]} ${H} Z`} fill="currentColor" opacity={0.1} />
+      <path d={d} fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lx} cy={ly} r={2.5} fill="currentColor" stroke="var(--card)" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
 export function Kpi({
-  label, value, change, good, hint, info,
+  label, value, change, good, hint, info, spark,
 }: {
-  label: string; value: string; change?: number | null; good?: "up" | "down" | "none"; hint?: string; info?: ReactNode;
+  label: string; value: string; change?: number | null; good?: "up" | "down" | "none"; hint?: string; info?: ReactNode; spark?: number[];
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-xl border bg-card p-3.5 shadow-sm">
+    <div className="relative flex min-w-0 flex-col gap-1 overflow-hidden rounded-xl border bg-card p-3.5 shadow-sm">
+      {spark ? <Spark values={spark} className="absolute right-3 top-3.5 opacity-90" /> : null}
       <div className="flex items-center gap-1.5">
         <span className="truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</span>
         {info ? <InfoTip text={info} /> : null}

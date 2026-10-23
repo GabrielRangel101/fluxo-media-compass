@@ -4,7 +4,8 @@ import { ChannelTag, DataTable, Kpi, Panel, StatusBadge, chart, SizedChart } fro
 import { fmtSignedPct } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { RECON_LABEL } from "@/engine/tracking";
-import type { EventHealthRow, ReconCheck } from "@/engine/tracking";
+import { CHANNELS } from "@/engine/types";
+import type { EventHealthRow, HealthStatus, ReconCheck } from "@/engine/tracking";
 import { cn } from "@/lib/utils";
 
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -31,6 +32,42 @@ export function TrackingView({ data }: { data: DashboardData }) {
         <Kpi label="Em atenção" value={String(tracking.warn)} hint="desvio ≥ 15%" />
         <Kpi label="Saudáveis" value={String(okCount)} hint="dentro do normal" />
       </div>
+
+      <Panel id="card-mapa" title="Mapa de saúde por canal" info="Cada célula mostra o pior desvio entre as plataformas daquele canal naquela checagem, contra o nível normal do próprio canal. Passe pelo mapa para achar o problema; a tabela abaixo mostra o detalhe.">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[34rem] border-separate border-spacing-1.5 text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="w-40 font-medium" />
+                {CHECKS.map((chk) => (<th key={chk} className="font-medium">{RECON_LABEL[chk].title}</th>))}
+              </tr>
+            </thead>
+            <tbody>
+              {CHANNELS.map((ch) => (
+                <tr key={ch}>
+                  <th className="text-left font-medium"><ChannelTag channel={ch} /></th>
+                  {CHECKS.map((chk) => {
+                    const rows = tracking.recon.filter((r) => r.channel === ch && r.check === chk && r.deviation !== null);
+                    const w = [...rows].sort((a, b) => Math.abs(b.deviation!) - Math.abs(a.deviation!))[0];
+                    const st: HealthStatus = rows.some((r) => r.status === "broken") ? "broken" : rows.some((r) => r.status === "warn") ? "warn" : rows.length ? "ok" : "low_volume";
+                    const tone = { broken: "bg-danger/15 text-danger border-danger/40", warn: "bg-warning/15 text-warning border-warning/40", ok: "bg-positive/10 text-positive border-positive/25", low_volume: "bg-muted text-muted-foreground border-border" }[st];
+                    return (
+                      <td key={chk} className={cn("rounded-lg border px-3 py-2.5 align-middle", tone)}>
+                        {w ? (
+                          <>
+                            <div className="tnum text-base font-semibold leading-none">{fmtSignedPct(w.deviation!, 0)}</div>
+                            <div className="mt-1 text-[11px] opacity-80">{st === "ok" ? "Normal" : `${PLAT[w.platform]} · ${st === "broken" ? "quebrado" : "atenção"}`}</div>
+                          </>
+                        ) : (<span className="text-xs">Sem dados</span>)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
       <Panel
         id="card-recon"
