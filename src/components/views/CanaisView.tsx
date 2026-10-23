@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelTag, DataTable, Kpi, Panel, channelColor, chart } from "@/components/dashboard/primitives";
+import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, Scatter, Tooltip, XAxis, YAxis } from "recharts";
+import { ChannelTag, DataTable, Kpi, Panel, channelColor, chart, SizedChart } from "@/components/dashboard/primitives";
 import { fmtBRL, fmtBRLCompact, fmtInt, fmtPct, fmtSignedInt } from "@/lib/format";
 import { curveSeries, simulate } from "@/lib/dashboard-data";
 import type { DashboardData } from "@/lib/dashboard-data";
@@ -89,8 +89,8 @@ function ResponseCurve({ data }: { data: DashboardData }) {
       }
     >
       <div className="h-56">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart margin={{ top: 4, right: 8, bottom: 16, left: 0 }}>
+        <SizedChart>{(w, h) => (<>
+          <ComposedChart width={w} height={h} margin={{ top: 4, right: 8, bottom: 16, left: 0 }}>
             <CartesianGrid stroke={chart.grid} />
             <XAxis type="number" dataKey="spend" name="Gasto" tick={chart.tick} tickLine={false} axisLine={false} domain={["auto", "auto"]} tickFormatter={(v: number) => fmtBRLCompact(v)} label={{ value: c.blockDays === 7 ? "Gasto semanal" : "Gasto diário", position: "insideBottom", offset: -8, fill: "var(--muted-foreground)", fontSize: 11 }} />
             <YAxis type="number" dataKey="installs" name="Instalações" tick={chart.tick} tickLine={false} axisLine={false} width={40} domain={["auto", "auto"]} />
@@ -98,7 +98,7 @@ function ResponseCurve({ data }: { data: DashboardData }) {
             <Scatter data={c.points} name="Observado" fill={channelColor(channel)} fillOpacity={0.55} />
             <Line data={c.line} dataKey="installs" name="Curva" stroke="var(--foreground)" strokeWidth={2} dot={false} isAnimationActive={false} />
           </ComposedChart>
-        </ResponsiveContainer>
+        </>)}</SizedChart>
       </div>
       <div className="mt-2 grid grid-cols-3 gap-3 text-xs">
         <div><div className="text-muted-foreground">β (elasticidade)</div><div className="tnum text-base font-semibold">{c.beta.toFixed(2).replace(".", ",")}</div></div>
@@ -121,8 +121,8 @@ export function CanaisView({ data }: { data: DashboardData }) {
           info="ROAS D90 = receita acumulada em 90 dias ÷ gasto, em instalações com 90 dias completos. A linha tracejada em 1,00× é o ponto em que o canal paga o próprio custo."
         >
           <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bars} layout="vertical" margin={{ top: 4, right: 24, bottom: 0, left: 8 }}>
+            <SizedChart>{(w, h) => (<>
+              <BarChart width={w} height={h} data={bars} layout="vertical" margin={{ top: 4, right: 24, bottom: 0, left: 8 }}>
                 <CartesianGrid stroke={chart.grid} horizontal={false} />
                 <XAxis type="number" tick={chart.tick} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}×`} />
                 <YAxis type="category" dataKey="name" tick={chart.tick} tickLine={false} axisLine={false} width={84} />
@@ -132,7 +132,7 @@ export function CanaisView({ data }: { data: DashboardData }) {
                   {bars.map((b) => (<Cell key={b.channel} fill={channelColor(b.channel)} />))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </>)}</SizedChart>
           </div>
         </Panel>
 

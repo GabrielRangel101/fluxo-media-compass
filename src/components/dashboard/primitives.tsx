@@ -1,3 +1,4 @@
+import { useSize } from "@/hooks/use-size";
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Database, Info } from "lucide-react";
@@ -141,3 +142,14 @@ export const chart = {
     labelStyle: { color: "var(--muted-foreground)", marginBottom: 4 },
   },
 } as const;
+
+/** Contêiner de gráfico que mede o próprio tamanho (ResizeObserver) e entrega largura/altura ao gráfico.
+ *  Evita o recharts ResponsiveContainer renderizar vazio quando mede 0 no primeiro frame (SSR/hidratação). */
+export function SizedChart({ children, className }: { children: (w: number, h: number) => ReactNode; className?: string }) {
+  const [ref, size] = useSize<HTMLDivElement>();
+  return (
+    <div ref={ref} className={cn("h-full w-full", className)}>
+      {size.w > 0 && size.h > 0 ? children(size.w, size.h) : null}
+    </div>
+  );
+}

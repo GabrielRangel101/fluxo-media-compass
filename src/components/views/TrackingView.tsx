@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelTag, DataTable, Kpi, Panel, StatusBadge, chart } from "@/components/dashboard/primitives";
+import { CartesianGrid, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import { ChannelTag, DataTable, Kpi, Panel, StatusBadge, chart, SizedChart } from "@/components/dashboard/primitives";
 import { fmtSignedPct } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { RECON_LABEL } from "@/engine/tracking";
@@ -82,8 +82,8 @@ export function TrackingView({ data }: { data: DashboardData }) {
 
         <Panel id="card-evento-serie" title={`Série diária · ${ev.event} (${PLAT[ev.platform]})`}>
           <div className="h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+            <SizedChart>{(w, h) => (<>
+              <LineChart width={w} height={h} data={series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke={chart.grid} vertical={false} />
                 <XAxis dataKey="date" tickFormatter={dm} tick={chart.tick} tickLine={false} axisLine={false} minTickGap={28} />
                 <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={40} domain={[0, "auto"]} tickFormatter={(v: number) => v.toFixed(2).replace(".", ",")} />
@@ -94,7 +94,7 @@ export function TrackingView({ data }: { data: DashboardData }) {
                 {ev.onset ? <ReferenceLine x={ev.onset} stroke="var(--danger)" label={{ value: `início ${dm(ev.onset)}`, fill: "var(--danger)", fontSize: 11, position: "insideTopRight" }} /> : null}
                 <Line dataKey="ratio" stroke="var(--primary)" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
               </LineChart>
-            </ResponsiveContainer>
+            </>)}</SizedChart>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Razão evento ÷ referência ({ev.reference.toLowerCase()}). Linha cinza: nível normal. Linhas vermelhas: banda de ±35%.</p>
           {ev.cause ? (

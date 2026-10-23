@@ -1,5 +1,5 @@
-import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelTag, DataTable, DeltaPill, Kpi, Panel, chart } from "@/components/dashboard/primitives";
+import { Bar, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
+import { ChannelTag, DataTable, DeltaPill, Kpi, Panel, chart, SizedChart } from "@/components/dashboard/primitives";
 import { useGoToCard } from "@/components/shell/use-go-to-card";
 import { fmtBRL, fmtBRLCompact, fmtInt, fmtPct } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
@@ -43,8 +43,8 @@ export function OverviewView({ data }: { data: DashboardData }) {
         <div className="min-w-0 space-y-4">
           <Panel id="card-serie" title="Investimento diário e CPI · 90 dias" sql="03_daily_series.sql">
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={data.daily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+              <SizedChart>{(w, h) => (<>
+                <ComposedChart width={w} height={h} data={data.daily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke={chart.grid} vertical={false} />
                   <XAxis dataKey="date" tickFormatter={dm} tick={chart.tick} tickLine={false} axisLine={false} minTickGap={28} />
                   <YAxis yAxisId="spend" tick={chart.tick} tickLine={false} axisLine={false} width={44} tickFormatter={(v: number) => fmtBRLCompact(v)} />
@@ -57,7 +57,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
                   <Bar yAxisId="spend" dataKey="spend" name="Investimento" fill="var(--cat-6)" fillOpacity={0.35} radius={[2, 2, 0, 0]} />
                   <Line yAxisId="cpi" dataKey="cpi" name="CPI" stroke="var(--primary)" strokeWidth={2} dot={false} connectNulls />
                 </ComposedChart>
-              </ResponsiveContainer>
+              </>)}</SizedChart>
             </div>
           </Panel>
 
