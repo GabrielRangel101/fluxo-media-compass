@@ -1,14 +1,21 @@
-import { Bar, CartesianGrid, ComposedChart, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { channelColor, ChannelTag, DataDetails, DataTable, DeltaPill, Kpi, Legend, Panel, chart, SizedChart } from "@/components/dashboard/primitives";
 import { CostReturnChart } from "@/components/dashboard/CostReturnChart";
 import { useGoToCard } from "@/components/shell/use-go-to-card";
 import { fmtBRL, fmtBRLCompact, fmtInt, fmtPct } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { CHANNEL_LABEL } from "@/engine/types";
+import { DEFECTS } from "@/engine/generate";
 import { cn } from "@/lib/utils";
 
 const rel = (a: number | null, b: number | null) => (a !== null && b ? a / b - 1 : null);
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const MARKS = [
+  { n: "1", date: DEFECTS.googleSignupDoubleCount.from, text: "Google Ads passa a contar cadastro em dobro" },
+  { n: "2", date: DEFECTS.ga4FormSubmitDuplicate.from, text: "form_submit duplicado no GA4" },
+  { n: "3", date: DEFECTS.metaIosAttributionLoss.from, text: "Meta iOS: MMP perde atribuição" },
+  { n: "4", date: DEFECTS.kycDoneAndroidSdk.from, text: "kyc_done para de chegar no Android" },
+] as const;
 const SEV = { alta: "bg-danger", media: "bg-warning", info: "bg-muted-foreground" } as const;
 
 export function OverviewView({ data }: { data: DashboardData }) {
@@ -87,13 +94,13 @@ export function OverviewView({ data }: { data: DashboardData }) {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-4">
           <Panel id="card-serie" ai="card-serie" title="Investimento diário e CPI · 90 dias" sql="03_daily_series.sql" info="Dois gráficos, um eixo cada: misturar R$ de investimento com R$ de CPI em escalas diferentes engana a leitura. A linha tracejada é a média móvel de 7 dias do CPI.">
-            <Legend className="mb-2" items={[{ label: "Investimento por dia", color: "var(--cat-6)", kind: "bar" }, { label: "CPI do dia", color: "var(--muted-foreground)", kind: "line" }, { label: "CPI, média de 7 dias", color: "var(--primary)", kind: "line" }]} />
+            <Legend className="mb-2" items={[{ label: "Investimento por dia", color: "var(--cat-6)", kind: "bar" }, { label: "CPI do dia", color: "var(--muted-foreground)", kind: "line" }, { label: "CPI, média de 7 dias", color: "var(--primary)", kind: "line" }, { label: "Defeito de coleta (1 a 4)", color: "var(--danger)", kind: "dash" }]} />
             <div className="h-28">
               <SizedChart>{(w, h) => (<>
                 <ComposedChart width={w} height={h} data={data.daily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke={chart.grid} vertical={false} />
                   <XAxis dataKey="date" hide />
-                  <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => fmtBRLCompact(v)} />
+                  <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={62} tickFormatter={(v: number) => fmtBRLCompact(v)} />
                   <Tooltip {...chart.tooltip} cursor={{ fill: "var(--secondary)" }} labelFormatter={(d: string) => dm(d)} formatter={(v: number) => [fmtBRL(v, 0), "Investimento"]} />
                   <Bar dataKey="spend" name="Investimento" fill="var(--cat-6)" fillOpacity={0.55} radius={[2, 2, 0, 0]} isAnimationActive={false} />
                 </ComposedChart>
@@ -104,13 +111,21 @@ export function OverviewView({ data }: { data: DashboardData }) {
                 <ComposedChart width={w} height={h} data={cpiSeries} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid stroke={chart.grid} vertical={false} />
                   <XAxis dataKey="date" tickFormatter={dm} tick={chart.tick} tickLine={false} axisLine={false} minTickGap={28} />
-                  <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={48} domain={["auto", "auto"]} tickFormatter={(v: number) => fmtBRL(v, 0)} />
+                  <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={62} domain={["auto", "auto"]} tickFormatter={(v: number) => fmtBRL(v, 0)} />
                   <Tooltip {...chart.tooltip} cursor={chart.crosshair} labelFormatter={(d: string) => dm(d)} formatter={(v: number, n: string) => [fmtBRL(v), n]} />
                   <Line dataKey="cpi" name="CPI do dia" stroke="var(--muted-foreground)" strokeOpacity={0.5} strokeWidth={1} dot={false} connectNulls isAnimationActive={false} />
                   <Line dataKey="ma7" name="CPI, média 7 dias" stroke="var(--primary)" strokeWidth={2.25} dot={false} connectNulls isAnimationActive={false} />
+                  {MARKS.filter((m) => cpiSeries.some((d) => d.date === m.date)).map((m) => (
+                    <ReferenceLine key={m.n} x={m.date} stroke="var(--danger)" strokeDasharray="4 3" strokeOpacity={0.7} label={{ value: m.n, position: "insideTopRight", fill: "var(--danger)", fontSize: 11, fontWeight: 700 }} />
+                  ))}
                 </ComposedChart>
               </>)}</SizedChart>
             </div>
+            <ol className="mt-2 grid gap-x-6 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
+              {MARKS.map((m) => (
+                <li key={m.n} className="flex gap-2"><span className="font-semibold text-danger">{m.n}</span><span>{dm(m.date)}: {m.text}</span></li>
+              ))}
+            </ol>
             <DataDetails
               head={["Dia", "Investimento", "Instalações", "CPI do dia", "CPI, média 7 dias"]}
               rows={cpiSeries.slice(-14).reverse().map((d, i) => { const x = data.daily[data.daily.length - 1 - i]!; return [dm(d.date), fmtBRL(x.spend, 0), fmtInt(x.installs), d.cpi === null ? "—" : fmtBRL(d.cpi), d.ma7 === null ? "—" : fmtBRL(d.ma7)]; })}

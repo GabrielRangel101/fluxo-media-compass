@@ -39,6 +39,14 @@ export function proportionTest(xA: number, nA: number, xB: number, nB: number): 
   return { pA, pB, lift: pA > 0 ? pB / pA - 1 : null, z, p: twoSidedP(z), mdeRel };
 }
 
+/** Intervalo de 95% do lift relativo B/A − 1 (método log da razão de proporções). Null se faltar evento. */
+export function liftInterval(xA: number, nA: number, xB: number, nB: number): { lo: number; hi: number } | null {
+  if (xA <= 0 || xB <= 0 || nA <= 0 || nB <= 0) return null;
+  const lr = Math.log((xB / nB) / (xA / nA));
+  const se = Math.sqrt((1 - xA / nA) / xA + (1 - xB / nB) / xB);
+  return { lo: Math.exp(lr - 1.96 * se) - 1, hi: Math.exp(lr + 1.96 * se) - 1 };
+}
+
 export type TestVerdict = "winner_a" | "winner_b" | "no_difference" | "underpowered" | "srm";
 
 export interface TestResult {

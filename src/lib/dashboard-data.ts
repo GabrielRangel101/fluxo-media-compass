@@ -3,6 +3,7 @@
 
 import { channelEconomics, fitCurves, predictInstalls, simulateShift } from "@/engine/allocation";
 import type { ChannelEconomics, ResponseCurve, Scenario } from "@/engine/allocation";
+import { liftInterval } from "@/engine/experiments";
 import { aiAnswer } from "@/engine/aiask";
 import type { AiAnswer } from "@/engine/aiask";
 import { answer } from "@/engine/ask";
@@ -40,6 +41,8 @@ export interface DashboardData {
   curves: ResponseCurve[];
   tracking: TrackingSummary;
   tests: TestResult[];
+  /** IC 95% do lift de cada teste (mesma ordem de `tests`) */
+  testCi: ({ lo: number; hi: number } | null)[];
   insights: Insight[];
   funnelAll: Funnel;
   funnelBy: Record<Channel, Funnel>;
@@ -56,6 +59,7 @@ export function getDashboardData(): DashboardData {
   const per = periods(ds);
   const chartRange: DateRange = { from: ds.dates[ds.dates.length - 90]!, to: ds.meta.refDate };
   const dailyByChannel = Object.fromEntries(CHANNELS.map((c) => [c, dailySeries(ds, chartRange, c)])) as Record<Channel, DailyPoint[]>;
+  const tests = readTests(ds);
   const weekStarts: string[] = [];
   for (let i = 0; i < dailyByChannel.google_ads.length; i += 7) weekStarts.push(dailyByChannel.google_ads[i]!.date);
   const weeklyCpi = {
@@ -82,7 +86,8 @@ export function getDashboardData(): DashboardData {
     eco: channelEconomics(ds),
     curves: fitCurves(ds),
     tracking: trackingSummary(ds),
-    tests: readTests(ds),
+    tests: tests,
+    testCi: tests.map((t) => liftInterval(t.a.installs, t.a.impressions, t.b.installs, t.b.impressions)),
     insights: buildInsights(ds),
     funnelAll: funnel(ds, per.full),
     funnelBy: Object.fromEntries(CHANNELS.map((c) => [c, funnel(ds, per.full, c)])) as Record<Channel, Funnel>,
@@ -134,6 +139,7 @@ export const AI_TARGETS = {
   "card-funil": { label: "Funil do app", question: "Onde perco mais no funil?" },
   "card-funil-canais": { label: "Conversão por canal", question: "Compare o funil entre os canais" },
   "card-plataforma": { label: "iOS × Android", question: "iOS ou Android tem CPI menor?" },
+  "card-lift": { label: "Lift por teste (IC 95%)", question: "Quais testes A/B posso ler?" },
   "card-testes": { label: "Leitura dos testes", question: "Quais testes A/B posso ler?" },
   "card-mapa": { label: "Mapa de saúde por canal", question: "Quais checagens de coleta estão quebradas?" },
   "card-recon": { label: "Reconciliação entre fontes", question: "Como a reconciliação funciona?" },

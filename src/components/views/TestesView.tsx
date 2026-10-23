@@ -1,4 +1,4 @@
-import { Panel } from "@/components/dashboard/primitives";
+import { DataDetails, Legend, Panel, SizedChart } from "@/components/dashboard/primitives";
 import { fmtInt } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
 import type { TestResult, TestVerdict } from "@/engine/experiments";
@@ -37,6 +37,41 @@ function Variant({ t, v }: { t: TestResult; v: "A" | "B" }) {
   );
 }
 
+const VERDICT_COLOR: Record<TestVerdict, string> = {
+  winner_a: "var(--positive)", winner_b: "var(--positive)", no_difference: "var(--muted-foreground)", underpowered: "var(--warning)", srm: "var(--danger)",
+};
+
+/** Floresta de lifts: ponto = lift de B sobre A, barra = IC 95%. Barra que cruza 0 = sem evidência de diferença. */
+function LiftForest({ data, w }: { data: DashboardData; w: number }) {
+  const rows = data.tests.map((t, i) => ({ t, ci: data.testCi[i] ?? null }));
+  const LABEL = Math.min(210, w * 0.38), R = 24, ROW = 38, TOP = 8, H = TOP + rows.length * ROW + 26;
+  const vals = rows.flatMap((r) => (r.ci ? [r.ci.lo, r.ci.hi] : [r.t.primary.lift ?? 0]));
+  const lim = Math.max(0.1, Math.ceil(Math.max(...vals.map(Math.abs)) * 10) / 10);
+  const x = (v: number) => LABEL + ((v + lim) / (2 * lim)) * (w - LABEL - R);
+  const ticks = [-lim, -lim / 2, 0, lim / 2, lim];
+  return (
+    <svg width={w} height={H} role="img" aria-label="Lift de cada teste com intervalo de confiança de 95%">
+      {ticks.map((v) => (
+        <g key={v}>
+          <line x1={x(v)} x2={x(v)} y1={TOP} y2={H - 22} stroke={v === 0 ? "var(--foreground)" : "var(--chart-grid)"} strokeWidth={v === 0 ? 1.25 : 1} strokeDasharray={v === 0 ? undefined : "3 3"} />
+          <text x={x(v)} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--muted-foreground)">{v > 0 ? "+" : v < 0 ? "−" : ""}{Math.abs(Math.round(v * 100))}%</text>
+        </g>
+      ))}
+      {rows.map(({ t, ci }, i) => {
+        const y = TOP + i * ROW + ROW / 2, c = VERDICT_COLOR[t.verdict], lift = t.primary.lift;
+        return (
+          <g key={t.testId}>
+            <title>{`${t.testId} · ${t.channelLabel}: lift ${signed(lift)}${ci ? `, IC 95% de ${signed(ci.lo)} a ${signed(ci.hi)}` : ""}. ${VERDICT[t.verdict].label}.`}</title>
+            <text x={0} y={y + 4} fontSize={12} fill="var(--foreground)">{t.testId} · {t.channelLabel}</text>
+            {ci ? <line x1={x(ci.lo)} x2={x(ci.hi)} y1={y} y2={y} stroke={c} strokeWidth={3} strokeLinecap="round" opacity={0.55} /> : null}
+            {lift !== null ? <circle cx={x(lift)} cy={y} r={5.5} fill={c} stroke="var(--card)" strokeWidth={2} /> : null}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export function TestesView({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-4">
@@ -51,6 +86,16 @@ export function TestesView({ data }: { data: DashboardData }) {
           <li className="rounded-lg bg-secondary p-3"><strong>2 · Amostra.</strong> Pelo menos 100 instalações por variante. Abaixo disso, um p baixo é sorte provável.</li>
           <li className="rounded-lg bg-secondary p-3"><strong>3 · Significância.</strong> Só então: p &lt; 0,05 declara vencedor.</li>
         </ol>
+      </Panel>
+      <Panel id="card-lift" ai="card-lift" title="Lift por teste, com intervalo de 95%" sql="06_ab_tests.sql" info="Ponto: lift de B sobre A em instalações por impressão. Barra: intervalo de 95%. Quando a barra cruza o zero, o teste não separa A de B. Testes com SRM aparecem em vermelho: a barra não vale, a divisão de tráfego quebrou.">
+        <Legend className="mb-2" items={[{ label: "Há vencedor", color: "var(--positive)", kind: "dot" }, { label: "Sem diferença", color: "var(--muted-foreground)", kind: "dot" }, { label: "Amostra insuficiente", color: "var(--warning)", kind: "dot" }, { label: "SRM: não confiável", color: "var(--danger)", kind: "dot" }]} />
+        <div style={{ height: 38 * data.tests.length + 34 }}>
+          <SizedChart>{(w) => <LiftForest data={data} w={w} />}</SizedChart>
+        </div>
+        <DataDetails
+          head={["Teste", "Lift B vs. A", "IC 95%", "p", "Leitura"]}
+          rows={data.tests.map((t, i) => { const ci = data.testCi[i]; return [`${t.testId} · ${t.channelLabel}`, signed(t.primary.lift), ci ? `${signed(ci.lo)} a ${signed(ci.hi)}` : "—", t.primary.p.toFixed(3).replace(".", ","), VERDICT[t.verdict].label]; })}
+        />
       </Panel>
       <div className="grid gap-4 lg:grid-cols-2">
         {data.tests.map((t) => {

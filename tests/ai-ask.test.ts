@@ -73,3 +73,11 @@ test("média por dia e pergunta de continuação", () => {
   assert.notEqual(b.intent, "fora_de_escopo");
   assert.equal(aiAnswer(ds, "qual a capital da França?", "Instalações").intent, "fora_de_escopo");
 });
+
+import { liftInterval } from "../src/engine/experiments.ts";
+test("intervalo do lift contém o lift observado e é nulo sem eventos", () => {
+  const ci = liftInterval(200, 100000, 260, 100000)!;
+  const lift = 260 / 200 - 1;
+  assert.ok(ci.lo < lift && lift < ci.hi);
+  assert.equal(liftInterval(0, 1000, 5, 1000), null);
+});
