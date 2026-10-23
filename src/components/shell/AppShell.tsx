@@ -7,6 +7,14 @@ import type { ViewId } from "@/lib/dashboard-data";
 import { ThemeToggle } from "./ThemeToggle";
 import { VIEWS } from "./views";
 
+/** Autoria. Para incluir o LinkedIn, preencha `linkedin` com a URL do perfil. */
+const AUTHOR = {
+  name: "Gabriel Rangel",
+  role: "Analista de dados",
+  github: "https://github.com/GabrielRangel101/fluxo-media-compass",
+  linkedin: "" as string,
+};
+
 export function AppShell({ view, brand, refLabel, brokenCount, children }: { view: ViewId; brand: string; refLabel: string; brokenCount: number; children: ReactNode }) {
   const { active: open } = useAi();
   return (
@@ -63,6 +71,17 @@ export function AppShell({ view, brand, refLabel, brokenCount, children }: { vie
         </nav>
       </header>
       <main className="mx-auto w-full max-w-none flex-1 px-3 pb-12 pt-4 sm:px-6 2xl:px-10">{children}</main>
+      <footer className="border-t">
+        <div className="flex w-full flex-col gap-1 px-3 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6 2xl:px-10">
+          <p>
+            Projeto de portfólio de <strong className="font-semibold text-foreground">{AUTHOR.name}</strong>, {AUTHOR.role.toLowerCase()}. Todos os dados são sintéticos e não vêm de nenhuma empresa real.
+          </p>
+          <p className="flex items-center gap-4">
+            {AUTHOR.linkedin ? <a href={AUTHOR.linkedin} target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">LinkedIn</a> : null}
+            <a href={AUTHOR.github} target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">Código no GitHub</a>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
