@@ -1,27 +1,31 @@
-// Calendário: mês 0 = nov/2024 … mês 23 = out/2026. Meses negativos = histórico anterior à janela.
+// Datas ISO sem fuso (UTC puro): evita qualquer deslocamento de dia.
 
-export const FIRST_YEAR = 2024;
-export const FIRST_CAL_MONTH = 10; // 0-based → novembro
-
-const MONTHS_PT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-
-export function calMonth(m: number): number {
-  return (((FIRST_CAL_MONTH + m) % 12) + 12) % 12;
+export function addDays(iso: string, n: number): string {
+  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
+  const t = Date.UTC(y, m - 1, d) + n * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
 }
 
-export function calYear(m: number): number {
-  return FIRST_YEAR + Math.floor((FIRST_CAL_MONTH + m) / 12);
+export function diffDays(a: string, b: string): number {
+  const [ya, ma, da] = a.split("-").map(Number) as [number, number, number];
+  const [yb, mb, db] = b.split("-").map(Number) as [number, number, number];
+  return Math.round((Date.UTC(ya, ma - 1, da) - Date.UTC(yb, mb - 1, db)) / 86_400_000);
 }
 
-export function monthLabel(m: number): string {
-  return `${MONTHS_PT[calMonth(m)]}/${String(calYear(m)).slice(2)}`;
+/** 0 = domingo … 6 = sábado */
+export function dow(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
-export function monthShort(m: number): string {
-  return MONTHS_PT[calMonth(m)];
+export function dateList(start: string, days: number): string[] {
+  return Array.from({ length: days }, (_, i) => addDays(start, i));
 }
 
-/** Índice do mês para um (ano, mês 1-12) */
-export function monthIndex(year: number, month1: number): number {
-  return (year - FIRST_YEAR) * 12 + (month1 - 1) - FIRST_CAL_MONTH;
+export const inRange = (d: string, r: { from: string; to: string }) => d >= r.from && d <= r.to;
+
+export function monthLabel(iso: string): string {
+  const meses = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  const [y, m] = iso.split("-").map(Number) as [number, number];
+  return `${meses[m - 1]}/${String(y).slice(2)}`;
 }

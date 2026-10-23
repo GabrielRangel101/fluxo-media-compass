@@ -30,3 +30,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+node_modules
+dist
+.output
+.tanstack
+data/
+*.log

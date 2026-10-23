@@ -1,10 +1,12 @@
-import { LayoutDashboard, Megaphone, Repeat, ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { BookOpenText, Database, FlaskConical, Funnel, LayoutDashboard, Megaphone, ShieldAlert } from "lucide-react";
 import type { ViewId } from "@/lib/dashboard-data";
 
-export const VIEWS: { id: ViewId; label: string; short: string; icon: typeof LayoutDashboard }[] = [
-  { id: "geral", label: "Visão geral", short: "Geral", icon: LayoutDashboard },
-  { id: "aquisicao", label: "Aquisição", short: "Aquisição", icon: Megaphone },
-  { id: "retencao", label: "Retenção", short: "Retenção", icon: Repeat },
-  { id: "risco", label: "Risco e sinergia", short: "Risco", icon: ShieldAlert },
-  { id: "simulador", label: "Simulador", short: "E se", icon: SlidersHorizontal },
+export const VIEWS: { id: ViewId; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "geral", label: "Visão geral", icon: LayoutDashboard },
+  { id: "canais", label: "Canais e verba", icon: Megaphone },
+  { id: "funil", label: "Funil do app", icon: Funnel },
+  { id: "testes", label: "Testes A/B", icon: FlaskConical },
+  { id: "tracking", label: "Saúde da coleta", icon: ShieldAlert },
+  { id: "tagbook", label: "Tagbook", icon: BookOpenText },
+  { id: "sql", label: "SQL", icon: Database },
 ];

@@ -1,5 +1,5 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "fluxo-media-compass",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:engine": "node --test \"tests/*.test.ts\"",
+    "db": "node scripts/build-db.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -93,5 +95,8 @@
     "typescript-eslint": "^8.56.1",
     "vite": "8.1.5",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=22.18"
   }
 }

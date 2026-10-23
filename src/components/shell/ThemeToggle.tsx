@@ -1,20 +1,18 @@
 import { Moon, Sun } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { setTheme, useTheme } from "./theme";
 
-export function ThemeToggle({ className, side = "right" }: { className?: string; side?: "right" | "bottom" }) {
+export function ThemeToggle({ className }: { className?: string }) {
   const theme = useTheme();
   const next = theme === "dark" ? "light" : "dark";
-  const label = theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro";
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button type="button" aria-label={label} onClick={() => setTheme(next)} className={cn("grid size-10 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground", className)}>
-          {theme === "dark" ? <Sun className="size-[18px]" aria-hidden /> : <Moon className="size-[18px]" aria-hidden />}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side={side}>{label}</TooltipContent>
-    </Tooltip>
+    <button
+      type="button"
+      onClick={() => setTheme(next)}
+      aria-label={`Mudar para o tema ${next === "dark" ? "escuro" : "claro"}`}
+      className={cn("inline-grid size-8 place-items-center rounded-md border bg-card text-muted-foreground hover:text-foreground", className)}
+    >
+      {theme === "dark" ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
+    </button>
   );
 }

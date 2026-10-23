@@ -2,7 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { canRecoverReactRuntime, isStaleReactRuntime } from "@/lib/react-runtime-recovery";
 
-const RECOVERY_KEY = "gazeta-react-runtime-recovery";
+const RECOVERY_KEY = "fluxo-react-runtime-recovery";
 /** A class boundary can recover a stale dispatcher without calling any hooks. */
 export class ReactRuntimeBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   override state: { error: Error | null } = { error: null };

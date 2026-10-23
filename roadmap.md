@@ -1,9 +1,0 @@
-- [x] 3C-1: app shell (rail, top bar, abas móveis) e views por ?view=.
-- [x] 3C-1: tema escuro padrão + claro opcional persistido.
-- [x] 3C-1: cards densos e views Visão geral, Aquisição, Retenção, Risco e sinergia.
-- [x] 3C-1: navegação dos insights troca de view e pulsa o card.
-- [x] 3C-1: testes + verificação 1440×900, 1920×1080, 390px.
-- [x] 3C-2: tema claro vidro padrão + pílula superior com orbe.
-- [x] 3C-2: insights com linhas fixas; "Em risco agora" variado por gatilho.
-- [x] 3C-2: Modo IA como camada sobre o dashboard (foco, cards gerados, linhas, painel, mobile).
-- [x] 3C-2: teste card→pergunta + verificação 1440/1920/390.

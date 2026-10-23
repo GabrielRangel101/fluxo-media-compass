@@ -1,93 +1,117 @@
-// Tipos do domínio. Só sintaxe "apagável" (sem enums) para rodar direto no Node e no Vite.
+// Tipos do dataset sintético "Fluxo" (fintech fictícia: conta digital + cartão).
+// Todas as datas são strings ISO (YYYY-MM-DD) para que o mesmo dado funcione em TS e em SQL.
 
-export const CHANNELS = [
-  "Orgânico",
-  "Newsletter",
-  "Mídia paga (Meta)",
-  "Mídia paga (Google)",
-  "Social orgânico",
-  "Parcerias",
-  "Direto",
-] as const;
-export type Channel = (typeof CHANNELS)[number];
+export type Channel = "google_ads" | "meta_ads" | "tiktok_ads" | "linkedin_ads" | "dv360";
+export type UserChannel = Channel | "organic";
+export type Platform = "android" | "ios";
 
-export const TOUCHPOINTS = [
-  "Paywall de matéria",
-  "Botão do header",
-  "Pop-up de oferta",
-  "CTA de newsletter",
-  "Landing de campanha",
-] as const;
-export type Touchpoint = (typeof TOUCHPOINTS)[number];
+export const CHANNELS: readonly Channel[] = ["google_ads", "meta_ads", "tiktok_ads", "linkedin_ads", "dv360"];
+export const PLATFORMS: readonly Platform[] = ["android", "ios"];
 
-export const PLANS = ["Mensal", "Anual", "Combo Streaming", "Estudante"] as const;
-export type Plan = (typeof PLANS)[number];
+export const CHANNEL_LABEL: Record<UserChannel, string> = {
+  google_ads: "Google Ads",
+  meta_ads: "Meta Ads",
+  tiktok_ads: "TikTok Ads",
+  linkedin_ads: "LinkedIn Ads",
+  dv360: "DV360",
+  organic: "Orgânico",
+};
 
-export const EDITORIAS = ["Política", "Esportes", "Economia", "Regional", "Cultura", "Variedades"] as const;
-export type Editoria = (typeof EDITORIAS)[number];
+export interface DateRange {
+  from: string; // inclusivo
+  to: string; // inclusivo
+}
 
-export const CANCEL_REASONS = [
-  "Preço",
-  "Fim da promoção",
-  "Pouco uso",
-  "Conteúdo não atende",
-  "Concorrente",
-  "Falha de pagamento",
-  "Não renovou",
-  "Outros",
-] as const;
-export type CancelReason = (typeof CANCEL_REASONS)[number];
-
-export type Nature = "Voluntário" | "Involuntário" | "Fim de contrato";
-
-export type Campaign = "Black Friday" | "Copa 2026" | "Eleições 2026";
-
-/** Assinante ativo nos meses [startMonth, endMonth). endMonth = null → ainda ativo. */
-export interface Subscriber {
-  id: number;
-  name: string;
-  avatarSeed: string;
-  startMonth: number;
-  endMonth: number | null;
+export interface Campaign {
+  campaign_id: string;
   channel: Channel;
-  touchpoint: Touchpoint;
-  plan: Plan;
-  /** Upgrade (ex.: Mensal → Anual) */
-  upgradeMonth: number | null;
-  planAfter: Plan | null;
-  promoDiscount: number; // 0..1
-  promoMonths: number;
-  engagement: number; // 0..100
-  interest: Editoria;
-  cancelReason: CancelReason | null;
-  nature: Nature | null;
-  npsScore: number; // 0..10
-  npsRespondent: boolean;
-  campaign: Campaign | null;
+  name: string;
+  objective: "install" | "search" | "prospecting" | "retargeting" | "video" | "lead_gen";
 }
 
-export interface EventMarker {
-  month: number;
-  label: string;
-  kind: "campanha" | "preço" | "evento";
-  description: string;
+/** Uma linha por campanha × plataforma × dia, como no export de uma plataforma de mídia. */
+export interface AdSpendRow {
+  date: string;
+  channel: Channel;
+  campaign_id: string;
+  platform: Platform;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  /** Instalações que a própria plataforma reporta (inclui view-through e modelagem). */
+  platform_installs: number;
+  /** Conversões de cadastro que a plataforma reporta. */
+  platform_signups: number;
 }
 
-export interface DatasetMeta {
-  brand: string;
-  /** Índice 0 = primeiro mês observado */
-  months: number;
-  firstMonthLabel: string;
-  lastMonthLabel: string;
-  events: EventMarker[];
-  /** Meta de assinantes ativos ao fim do horizonte de projeção */
-  goalActive: number;
-  goalMonth: number;
-  churnTarget: number; // meta de churn mensal (fração)
-  seed: number;
+/** Uma linha por usuário (backend + atribuição do MMP). */
+export interface UserRow {
+  user_id: number;
+  install_date: string;
+  /** Canal atribuído pelo MMP (AppsFlyer). */
+  channel: UserChannel;
+  campaign_id: string;
+  platform: Platform;
+  signup_date: string | null;
+  kyc_date: string | null;
+  first_use_date: string | null;
+  /** Receita acumulada em 30/90 dias. NULL = coorte ainda não completou a janela. */
+  rev_d30: number | null;
+  rev_d90: number | null;
+  /** utm_source capturado pelo backend no cadastro. 'unattributed' = sem UTM. NULL = não cadastrou. */
+  utm_internal: string | null;
+}
+
+export type EventName =
+  | "first_open"
+  | "signup_completed"
+  | "kyc_done"
+  | "card_first_use"
+  | "page_view"
+  | "cta_click"
+  | "form_submit";
+
+export interface EventDailyRow {
+  date: string;
+  event_name: EventName;
+  platform: Platform | "web";
+  source: "af_sdk" | "ga4";
+  event_count: number;
+}
+
+export interface ExperimentRow {
+  test_id: string;
+  channel: Channel;
+  test_type: "creative" | "audience" | "bid";
+  name: string;
+  variant: "A" | "B";
+  start_date: string;
+  end_date: string;
+  impressions: number;
+  clicks: number;
+  installs: number;
+}
+
+export interface TagbookEntry {
+  event_name: EventName;
+  area: "app" | "web";
+  platforms: readonly (Platform | "web")[];
+  trigger: string;
+  params: readonly string[];
+  is_conversion: boolean;
+  destinations: readonly string[];
+  owner: "Mídia" | "Produto" | "Engenharia";
+  /** O que o evento é comparado para saber se a coleta está correta. */
+  reference: string;
 }
 
 export interface Dataset {
-  meta: DatasetMeta;
-  subscribers: Subscriber[];
+  meta: { brand: string; seed: number; refDate: string; startDate: string; days: number; maturityDays: number };
+  dates: string[];
+  campaigns: Campaign[];
+  adSpend: AdSpendRow[];
+  users: UserRow[];
+  events: EventDailyRow[];
+  experiments: ExperimentRow[];
+  tagbook: TagbookEntry[];
 }

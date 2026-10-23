@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 export type Theme = "dark" | "light";
-export const THEME_KEY = "gm-theme";
+export const THEME_KEY = "fx-theme";
 const listeners = new Set<() => void>();
 
 export function getTheme(): Theme {

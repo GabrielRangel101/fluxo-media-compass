@@ -1,35 +1,82 @@
-# Meridiano Subscriber Compass
+# Fluxo · Media & Tracking Compass
 
-Dashboard de **inteligência de assinaturas digitais (B2C)** da *Gazeta Meridiano*, um jornal **fictício**. Todos os dados são **100% sintéticos**, gerados no navegador por uma simulação determinística (seed fixa), sem nenhuma informação real de assinantes (LGPD).
+Dashboard de **mídia paga, aquisição de app e saúde da coleta** para a *Fluxo*, uma fintech **fictícia** (conta digital + cartão). Todos os dados são **100% sintéticos**, gerados por uma simulação determinística (seed fixa), sem nenhuma informação real.
 
-Projeto de portfólio de **Gabriel Rangel**: dashboard web com motor de métricas próprio, motor de insights por regras, simulador "e se" e uma mesa de análise que responde perguntas de negócio sobre o painel.
+Projeto de portfólio de Gabriel Rangel. Mesma filosofia do dashboard da Gazeta Meridiano: motor de métricas próprio e testado, e uma "mesa de análise" em que **a IA nunca calcula números**, só escolhe a análise e redige.
 
-**Demo:** https://meridiano-subscriber-compass.lovable.app
+## O que ele responde
 
-## O que responde
-- **Aquisição:** funil de ponta a ponta (visitantes → início da compra → revisão → cartão → compra) por canal, com o maior vazamento e quantas assinaturas seriam recuperadas; CAC, LTV de 12 meses, LTV/CAC e payback por canal.
-- **Receita:** ponte de MRR (novas, fim de promoção, reajuste, upgrades, cancelamentos) e mix de planos (base × receita).
-- **Retenção:** churn por natureza e motivo, curva de permanência por safra (Kaplan-Meier, trata censura à direita) e risco de cancelamento por assinante.
-- **Simulador:** três alavancas (churn voluntário, recuperação de falha de pagamento, aquisição) sobre a mesma projeção do dashboard, com o que bastaria sozinho para bater a meta.
-- **Notas por mês** nos gráficos, **Pauta do dia** (achados priorizados) e **busca Ctrl/⌘+K**.
+| Módulo | Pergunta que responde |
+|---|---|
+| Visão executiva | Quanto investimos, a que CPI/CPA/CAC, e o que mudou nos últimos 28 dias? |
+| Canais e alocação | Qual canal paga o próprio custo em 90 dias? Se eu mover 20% da verba de A para B, o que muda? |
+| Funil do app | Onde se perde gente entre clique, instalação, cadastro, KYC e primeiro uso do cartão, por canal? |
+| Testes A/B | Este teste pode ser lido? (SRM, amostra mínima, significância) |
+| Saúde da coleta | As fontes (plataforma × AppsFlyer × backend) ainda concordam? O que quebrou e quando? |
+| Tagbook | Quais eventos existem, quem é o dono, para onde vão e se estão saudáveis? |
+| SQL | Qual consulta gera cada número? |
 
-## Mesa de análise (Modo IA)
-Clique num card e o painel gera leituras ligadas a ele, com sugestões de próxima pergunta. É um roteador de intenções sobre um motor determinístico: **a IA nunca calcula números**, só escolhe, ordena e redige. Responde perguntas como "qual o CAC por canal?", "vale a pena mídia paga?", "onde perco mais no funil?", "e se o churn cair 1 ponto?" e "baixar o preço melhora o churn?" (limite do efeito e custo, sem fingir causalidade).
+## Como rodar o motor (só Node ≥ 22.18, zero dependências)
 
-## Arquitetura
-- `src/engine/`: funções puras sobre o dataset (geração, métricas, funil, unit economics, what-if, notas, insights, roteadores de perguntas).
-- `src/components/`: dashboard, simulador, painel de IA e barra de comandos.
-- Testes (vitest) cobrindo o motor, os roteadores de perguntas e as legendas.
-
-## Limites assumidos
-CAC e taxas de visitante, revisão e cartão são premissas sintéticas por canal. Não há teste de preço nos dados, então a elasticidade não é medida.
-
-## Rodar localmente
 ```bash
-bun install   # ou npm install
-bun dev       # ou npm run dev
-bun run test  # vitest
+node --test "tests/*.test.ts"   # 20 testes: motor + equivalência SQL × TypeScript
+node scripts/build-db.ts        # gera data/fluxo.sqlite e CSVs (DBeaver, Power BI, Looker Studio)
+sqlite3 data/fluxo.sqlite < sql/01_channel_summary.sql   # exige passar os parâmetros (:from, :to, :ref, :platform)
 ```
 
-## Stack
-TanStack Start + React + Vite, Tailwind + shadcn/ui, Recharts, framer-motion.
+## Como rodar a interface (React + TanStack Start)
+
+```bash
+bun install
+bun dev          # abre em http://localhost:3000 (a rota é gerada em src/routeTree.gen.ts na primeira execução)
+```
+
+Abas (`/?view=`): `geral`, `canais` (curva de resposta + simulador de verba), `funil`, `testes`, `tracking`, `tagbook`, `sql` (`&file=04_reconciliation.sql`). A UI lê dados só via `src/lib/dashboard-data.ts`.
+
+> **Estado de verificação.** Motor, pacote SQL e testes (`node --test "tests/*.test.ts"`, 20 testes) foram executados e passam. A interface foi escrita e checada por tipos contra o motor, mas **ainda não foi compilada nem aberta no navegador** (o ambiente de criação não tinha acesso ao npm). Se `bun dev` mostrar erro, ele deve ser pontual de import ou de props.
+
+## Pacote SQL (`/sql`)
+
+Cada arquivo é uma consulta comentada. O teste `tests/sql-equivalence.test.ts` roda cada uma sobre o mesmo dataset e exige que o resultado **bata com o motor TypeScript** (tolerância 1e-9). Se alguém alterar uma regra só de um lado, o teste quebra.
+
+| Arquivo | Conteúdo |
+|---|---|
+| `00_schema.sql` | Tabelas: campanhas, gasto diário por plataforma, usuários (MMP + backend), eventos, testes, tagbook |
+| `01_channel_summary.sql` | CPM, CTR, CPC, CPI, CPA, CAC, ROAS D30/D90, LTV90 por canal |
+| `02_funnel.sql` | Funil de coorte, com custo por etapa |
+| `03_daily_series.sql` | Série diária de gasto, instalações e CPI |
+| `04_reconciliation.sql` | Plataforma × MMP × backend, com desvio contra o período-base |
+| `05_event_health.sql` | Eventos do tagbook contra uma referência independente |
+| `06_ab_tests.sql` | Taxas por variante e divisão de impressões (SRM) |
+| `07_platform_split.sql` | iOS × Android |
+| `08_curve_inputs.sql` | Insumo da curva de resposta por canal |
+
+A significância dos testes A/B (teste z) e a regressão da curva de resposta rodam no TypeScript, porque SQL puro não tem essas funções.
+
+## Definições de métricas
+
+- **CPI** = gasto ÷ instalações atribuídas pelo MMP. **CPA** = gasto ÷ cadastros concluídos.
+- **CAC** = gasto ÷ usuários que usaram o cartão em até 14 dias. **Ativação** = primeiro uso do cartão.
+- **ROAS D30 / D90** = receita acumulada em 30 / 90 dias ÷ gasto da mesma coorte. **LTV90** = receita D90 ÷ usuários ativados. LTV90 ÷ CAC da mesma coorte é o ROAS D90.
+- **Maturidade**: o fundo do funil (ativação, CAC) só usa coortes com 14+ dias; ROAS D30 exige 30+ dias; ROAS D90 e LTV90 exigem 90+. Coorte recente não tem ROAS, e o painel mostra isso em vez de um número enganoso.
+- **CPI marginal** = CPI ÷ β, com β estimado por regressão log-log de instalações sobre gasto (período até D-45, antes das falhas de coleta).
+
+## Defeitos de coleta injetados (de propósito)
+
+O dataset tem cinco falhas de tracking plantadas. O painel de saúde da coleta as encontra sem ser avisado, com a data de início recuperada dos dados, e os testes conferem que **só elas** são sinalizadas.
+
+| Falha | Como aparece | Início |
+|---|---|---|
+| `kyc_done` some no SDK Android | Razão SDK ÷ backend cai 96% só no Android | 08/09 |
+| `form_submit` duplicado no GTM | Razão `form_submit` ÷ `cta_click` dobra | 12/08 |
+| Google Ads importa cadastro duas vezes | Plataforma ÷ MMP vai de 1,05 para 2,00 | 01/08 |
+| Meta iOS perde atribuição no MMP | Plataforma ÷ MMP de instalações vai de 1,18 para 1,87; o CPI do Meta parece subir | 24/08 |
+| LinkedIn sem `utm_source` em uma campanha | Razão UTM do backend ÷ MMP cai 49% | 20/07 |
+
+Uma razão entre fontes nunca é comparada a 1: a plataforma **sempre** infla instalações frente ao MMP (view-through, modelagem). O alerta é o desvio contra o nível normal de cada par.
+
+## Limites
+
+- Dados sintéticos: os números provam o método, não retratam nenhum mercado.
+- A curva de resposta só extrapola dentro de 60%–160% do gasto atual e assume eficiência constante. O simulador serve para formular hipótese de teste, não para decidir verba sozinho.
+- LinkedIn tem poucas instalações por dia: a elasticidade dele é estimada em blocos semanais e marcada como baixa confiança.
