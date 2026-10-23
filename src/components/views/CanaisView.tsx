@@ -56,9 +56,9 @@ function Simulator() {
           <Legend className="mb-2" items={[{ label: "Ganha instalações", color: "var(--positive)", kind: "bar" }, { label: "Perde instalações", color: "var(--danger)", kind: "bar" }, { label: "Saldo", color: "var(--foreground)", kind: "bar" }]} />
           <div style={{ height: 44 * (changed.length + 1) + 28 }}>
             <SizedChart>{(w, h) => (
-              <BarChart width={w} height={h} layout="vertical" data={[...changed.map((r) => ({ name: CHANNEL_LABEL[r.channel], v: r.installsAfter - r.installsBefore })), { name: "Saldo", v: s.installsDelta }]} margin={{ top: 4, right: 56, bottom: 0, left: 0 }}>
+              <BarChart width={w} height={h} layout="vertical" data={[...changed.map((r) => ({ name: CHANNEL_LABEL[r.channel], v: r.installsAfter - r.installsBefore })), { name: "Saldo", v: s.installsDelta }]} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke={chart.grid} horizontal={false} />
-                <XAxis type="number" tick={chart.tick} tickLine={false} axisLine={false} tickFormatter={(v: number) => fmtSignedInt(Math.round(v))} />
+                <XAxis type="number" domain={[(m: number) => m - Math.max(40, Math.abs(m) * 0.35), (m: number) => m + Math.max(40, Math.abs(m) * 0.35)]} tick={chart.tick} tickLine={false} axisLine={false} tickFormatter={(v: number) => fmtSignedInt(Math.round(v))} />
                 <YAxis type="category" dataKey="name" tick={chart.tick} tickLine={false} axisLine={false} width={84} />
                 <ReferenceLine x={0} stroke="var(--foreground)" />
                 <Tooltip {...chart.tooltip} cursor={{ fill: "var(--secondary)" }} formatter={(v: number) => [fmtSignedInt(Math.round(v)), "Instalações"]} />

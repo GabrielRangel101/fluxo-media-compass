@@ -39,16 +39,12 @@ export function OverviewView({ data }: { data: DashboardData }) {
         <button
           type="button"
           onClick={() => go(headline.view, headline.target)}
-          className="group relative flex w-full flex-col gap-3 overflow-hidden rounded-[20px] bg-[hsl(222_42%_10%)] p-6 text-left text-[hsl(210_25%_95%)] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-ring sm:flex-row sm:items-end sm:gap-8 sm:p-7"
+          className="group relative flex w-full flex-col gap-3 overflow-hidden rounded-2xl bg-[hsl(222_32%_11%)] p-6 text-left text-[hsl(210_25%_95%)] transition-colors hover:bg-[hsl(222_32%_13%)] focus-visible:outline-2 focus-visible:outline-ring sm:flex-row sm:items-end sm:gap-8 sm:p-7"
         >
-          <span aria-hidden className="pointer-events-none absolute -right-16 -top-24 size-72 rounded-full bg-[hsl(4_82%_60%)] opacity-[0.14] blur-3xl" />
           <span className="relative min-w-0 flex-1">
-            <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-[hsl(4_82%_60%/0.16)] px-2.5 py-1 text-xs font-semibold text-[hsl(4_90%_76%)]">
-              <span className="size-1.5 rounded-full bg-[hsl(4_90%_70%)]" aria-hidden />
-              Achado mais grave desta semana
-            </span>
-            <span className="font-display block max-w-[28ch] text-2xl font-semibold leading-[1.15] tracking-tight sm:text-[32px]">{headline.title}</span>
-            <span className="mt-3 block max-w-[68ch] text-[15px] leading-relaxed text-[hsl(210_18%_74%)]">{headline.detail}</span>
+            <span className="mb-2 block text-xs font-medium text-[hsl(210_18%_68%)]">Principal alerta da semana</span>
+            <span className="font-display block max-w-[34ch] text-2xl font-semibold leading-[1.15] tracking-tight sm:text-[28px]">{headline.title}</span>
+            <span className="mt-3 block max-w-[60ch] text-sm leading-relaxed text-[hsl(210_18%_74%)]">{headline.summary}</span>
           </span>
           <span className="relative flex shrink-0 gap-6 sm:flex-col sm:gap-3 sm:text-right">
             <span>
@@ -201,7 +197,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
                     <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", SEV[i.severity])} aria-hidden />
                     <div className="min-w-0">
                       <div className="text-[13px] font-semibold leading-snug">{i.title}</div>
-                      <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted-foreground group-hover:line-clamp-none">{i.detail}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{i.summary}</p>
                     </div>
                   </div>
                 </button>

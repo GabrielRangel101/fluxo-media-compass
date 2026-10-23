@@ -16,6 +16,8 @@ export interface Insight {
   severity: "alta" | "media" | "info";
   topic: "tracking" | "eficiencia" | "canais" | "testes" | "funil";
   title: string;
+  /** uma frase, para a lista e o banner; `detail` é a explicação completa (Mesa de análise e respostas) */
+  summary: string;
   detail: string;
   view: ViewId;
   /** id estável do card de destino */
@@ -32,6 +34,7 @@ const cpmChangeText = (now: number | null, prev: number | null) => {
     : "O CPM ficou estável: a perda vem de conversão ou criativo, não de leilão.";
 };
 
+const firstSentence = (t: string) => (t.match(/^.*?[.!?](?=\s|$)/)?.[0] ?? t).trim();
 const listPt = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} e ${xs[xs.length - 1]}`);
 
 export function buildInsights(ds: Dataset): Insight[] {
@@ -54,6 +57,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: "trk-meta-ios", severity: "alta", topic: "tracking", view: "tracking", target: "card-recon",
       title: "Meta iOS: o MMP está perdendo atribuição",
+      summary: ch !== null && corrected !== null && meta14.cpi !== null ? `As instalações iOS viraram "orgânico" no AppsFlyer. O CPI aparece como ${brl(meta14.cpi)}; com a atribuição corrigida seria ~${brl(corrected)}.` : `As instalações iOS viraram "orgânico" no AppsFlyer.`,
       detail: `A razão plataforma ÷ AppsFlyer passou de ${n2(metaIos.ratioBaseline ?? 0)} para ${n2(metaIos.ratioCurrent ?? 0)} (${spct(metaIos.deviation ?? 0)}). As instalações iOS não somem: viram "orgânico" no MMP.${ch !== null && corrected !== null && meta14.cpi !== null ? ` O CPI do Meta subiu ${spct(ch)} em 28 dias; nos últimos ${CURRENT_DAYS} dias ele aparece como ${brl(meta14.cpi)}, e estimo ${brl(corrected)} se as ~${Math.round(lost)} instalações perdidas fossem atribuídas (estimativa pela razão do período-base). Revisar o mapeamento de conversion values do SKAdNetwork.` : " Revisar o mapeamento de conversion values do SKAdNetwork."}`,
     });
   }
@@ -63,6 +67,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: "trk-google-signups", severity: "alta", topic: "tracking", view: "tracking", target: "card-recon",
       title: "Google Ads reporta quase o dobro dos cadastros",
+      summary: `Plataforma ÷ MMP foi de ${n2(gSignups.ratioBaseline ?? 0)} para ${n2(gSignups.ratioCurrent ?? 0)}. Provável conversão importada duas vezes (GA4 e AppsFlyer).`,
       detail: `Plataforma ÷ MMP foi de ${n2(gSignups.ratioBaseline ?? 0)} para ${n2(gSignups.ratioCurrent ?? 0)} (${spct(gSignups.deviation ?? 0)})${gBackendOk ? ", enquanto a razão backend ÷ AppsFlyer ficou estável" : ""}. Padrão típico de conversão importada duas vezes (GA4 e AppsFlyer). O CPA que o Google mostra está subestimado e o algoritmo otimiza em cima de um sinal inflado.`,
     });
   const liUtm = recon.find((r) => r.check === "signups_backend_vs_mmp" && r.channel === "linkedin_ads");
@@ -81,6 +86,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: "trk-linkedin-utm", severity: "media", topic: "tracking", view: "tracking", target: "card-recon",
       title: "LinkedIn: boa parte dos cadastros chega sem UTM no backend",
+      summary: `Os cadastros com UTM caíram ${pct(Math.abs(liUtm.deviation ?? 0), 0)} frente ao período-base.${worst && name ? ` Pior campanha: ${name}.` : ""}`,
       detail: `A razão UTM do backend ÷ MMP caiu ${pct(Math.abs(liUtm.deviation ?? 0), 0)} frente ao período-base.${worst && name ? ` A campanha "${name}" concentra a perda: ${pct(worst[1].miss / worst[1].n, 0)} dos cadastros recentes sem utm_source.` : ""} URLs sem parâmetros deixam de ser atribuídas por qualquer relatório que dependa de UTM.`,
     });
   }
@@ -91,6 +97,7 @@ export function buildInsights(ds: Dataset): Insight[] {
         e.direction === "drop"
           ? `${e.event} parou de chegar${e.platform === "web" ? "" : ` no ${e.platform === "android" ? "Android" : "iOS"}`} desde ${e.onset ? dm(e.onset) : "—"}`
           : `${e.event} está duplicado desde ${e.onset ? dm(e.onset) : "—"}`,
+      summary: firstSentence(e.cause ?? ""),
       detail: `${e.cause ?? ""} ${e.impact ?? ""}`.trim(),
     });
   }
@@ -104,6 +111,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: "eff-roas-gap", severity: "alta", topic: "eficiencia", view: "canais", target: "card-economia",
       title: `${CHANNEL_LABEL[best.channel]} devolve ${n2(best.roas90!)}× em 90 dias; ${CHANNEL_LABEL[worst.channel]}, ${n2(worst.roas90!)}×`,
+      summary: `${paying.length === 0 ? "Nenhum canal paga" : `Só ${listPt(paying.map((r) => CHANNEL_LABEL[r.channel]))} ${paying.length > 1 ? "pagam" : "paga"}`} o próprio custo em 90 dias. CPI baixo não garante retorno.`,
       detail: `Em coortes com 90 dias completos, ${paying.length === 0 ? "nenhum canal paga o próprio custo" : `só ${listPt(paying.map((r) => CHANNEL_LABEL[r.channel]))} ${paying.length > 1 ? "pagam" : "paga"} o próprio custo`} em 90 dias. O CPI sozinho esconde isso: o CPI do ${CHANNEL_LABEL[worst.channel]} é de ${brl(worst.cpi ?? 0)}, mas só ${pct(worst.activationRate ?? 0, 0)} das instalações usam o cartão.`,
     });
   }
@@ -112,6 +120,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: "eff-shift", severity: "media", topic: "eficiencia", view: "canais", target: "card-simulador",
       title: `Mover 20% de ${CHANNEL_LABEL[shift.from]} para ${CHANNEL_LABEL[shift.to]} rende ~${brl0(shift.valueDelta)} em LTV90`,
+      summary: `${shift.installsDelta >= 0 ? "+" : "−"}${Math.abs(Math.round(shift.installsDelta))} instalações e ${shift.activatedDelta >= 0 ? "+" : "−"}${Math.abs(Math.round(shift.activatedDelta))} ativações com o mesmo orçamento. É hipótese a testar.`,
       detail: `Mesmo orçamento total (${brl0(shift.movedAmount)} realocados em 28 dias). Variação projetada: ${shift.installsDelta >= 0 ? "+" : "−"}${Math.abs(Math.round(shift.installsDelta))} instalações e ${shift.activatedDelta >= 0 ? "+" : "−"}${Math.abs(Math.round(shift.activatedDelta))} ativações. Projeção por curva de resposta; vale como hipótese a testar, não como certeza.`,
     });
   const cpmNow = new Map(channelSummary(ds, per.last28).map((r) => [r.channel, r.cpm]));
@@ -123,6 +132,7 @@ export function buildInsights(ds: Dataset): Insight[] {
       out.push({
         id: `cpi-${c.channel}`, severity: "media", topic: "canais", view: "geral", target: "card-canais",
         title: `CPI do ${CHANNEL_LABEL[c.channel]} subiu ${spct(ch)} em 28 dias`,
+      summary: `CPI de ${brl(c.cpi ?? 0)}, era ${brl((c.cpi ?? 0) / (1 + ch))}. ${recon.some((r) => r.channel === c.channel && r.status === "broken") ? "Há falha de coleta no canal." : cpmChangeText(cpmNow.get(c.channel) ?? null, cpmPrev.get(c.channel) ?? null)}`,
         detail: `Gasto ${brl0(c.spend)} no período, CPI ${brl(c.cpi ?? 0)} (era ${brl((c.cpi ?? 0) / (1 + ch))}). ${recon.some((r) => r.channel === c.channel && r.status === "broken") ? "Há falha de coleta neste canal (ver Saúde da coleta): ler o CPI com cautela." : "Sem falha de coleta associada."} ${cpmChangeText(cpmNow.get(c.channel) ?? null, cpmPrev.get(c.channel) ?? null)} A próxima instalação custa ~${brl(c.marginalCpi ?? 0)} (CPI marginal pela curva de resposta).`,
       });
   }
@@ -134,6 +144,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: `test-${srm.testId}`, severity: "media", topic: "testes", view: "testes", target: "card-testes",
       title: `Teste ${srm.testId} (${srm.name.toLowerCase()}) não pode ser lido: SRM`,
+      summary: "A divisão de tráfego quebrou, então o resultado não vale.",
       detail: srm.note,
     });
   const win = tests.find((t) => t.verdict === "winner_a" || t.verdict === "winner_b");
@@ -141,6 +152,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: `test-${win.testId}`, severity: "info", topic: "testes", view: "testes", target: "card-testes",
       title: `Teste ${win.testId}: variante ${win.verdict === "winner_b" ? "B" : "A"} ganha em ${win.channelLabel}`,
+      summary: `${spct(win.primary.lift ?? 0)} instalações por impressão, com amostra suficiente.`,
       detail: `${win.name}: ${spct(win.primary.lift ?? 0)} instalações por impressão. ${win.note}`,
     });
 
@@ -151,6 +163,7 @@ export function buildInsights(ds: Dataset): Insight[] {
     out.push({
       id: "funnel-use", severity: "info", topic: "funil", view: "funil", target: "card-funil",
       title: `${pct(use.rate, 0)} dos KYC aprovados usam o cartão em até 14 dias`,
+      summary: "É a etapa que separa canal de qualidade de canal de volume.",
       detail: `É a etapa que mais separa canais de qualidade (LinkedIn, Google) de canais de volume (TikTok, DV360). Custo por usuário ativado no total de mídia: ${brl0(use.costPer ?? 0)}.`,
     });
 
