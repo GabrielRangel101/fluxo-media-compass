@@ -165,3 +165,29 @@ test("mesa de análise: roteamento e números vêm do motor", () => {
   for (const q of ["resumo", "funil do google", "testes", "coleta", "cac", "roas", "canais", "cpi", "verba"])
     assert.ok(answer(ds, q).sql.length > 0, `${q}: resposta sem SQL de origem`);
 });
+
+import { corrections } from "../src/engine/adjust.ts";
+test("correção de atribuição: só onde a reconciliação está quebrada, e nunca piora o CPI", () => {
+  const cs = corrections(ds);
+  const meta = cs.find((c) => c.channel === "meta_ads" && c.platform === "ios")!;
+  assert.ok(meta, "Meta iOS tem defeito de atribuição");
+  assert.ok(meta.onset && meta.onset >= "2026-08-20" && meta.onset <= "2026-08-30", `onset ${meta.onset}`);
+  assert.ok(meta.lost28 > 50);
+  assert.ok(meta.cpi! < meta.cpiRaw!);
+  assert.ok(meta.cac! <= meta.cacRaw!);
+  assert.equal(meta.roas90Affected, false, "coorte D90 é anterior ao defeito");
+  assert.equal(meta.roas90, meta.roas90Raw);
+  assert.ok(!cs.some((c) => c.channel === "google_ads" && c.platform === "ios"));
+});
+
+import { blended, roasConfidence } from "../src/engine/confidence.ts";
+test("confiança do ROAS: intervalo contém o ROAS, veredito coerente, blended ≥ atribuído", () => {
+  const rc = roasConfidence(ds);
+  for (const r of rc) {
+    assert.ok(r.roas !== null && r.lo !== null && r.hi !== null && r.lo <= r.roas && r.roas <= r.hi);
+    assert.equal(r.verdict, r.lo >= 1 ? "paga" : r.hi < 1 ? "nao_paga" : "inconclusivo");
+    assert.ok(r.projected !== null && r.projected > 0);
+  }
+  assert.equal(rc.find((r) => r.channel === "linkedin_ads")!.lowSample, true);
+  for (const b of blended(ds)) assert.ok(b.blendedRoas! >= b.attributedRoas!);
+});

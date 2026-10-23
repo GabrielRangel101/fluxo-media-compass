@@ -162,7 +162,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
             sql="01_channel_summary.sql"
             info="Topo de funil (gasto, instalações, CPI, CPA) usa os últimos 28 dias. Ativação, CAC e ROAS D90 usam coortes maduras e, por isso, vêm de instalações mais antigas (mai–jul para o ROAS)."
           >
-            <DataTable head={["Canal", "Gasto", "Instalações", "CPI", "Δ CPI", "CPA", "Ativação", "CAC", "ROAS D90"]}>
+            <DataTable head={["Canal", "Gasto", "Instalações", "CPI", "Δ CPI", "CPI corrigido", "CPA", "Ativação", "CAC", "ROAS D90"]}>
               {data.last.map((r, i) => {
                 const p = data.prev[i]!;
                 const m = data.mature[i]!;
@@ -171,9 +171,10 @@ export function OverviewView({ data }: { data: DashboardData }) {
                   <tr key={r.channel} className={cn(isTotal && "font-semibold")}>
                     <td className="whitespace-nowrap"><ChannelTag channel={r.channel} /></td>
                     <td className="tnum">{fmtBRLCompact(r.spend)}</td>
-                    <td className="tnum">{fmtInt(r.installs)}</td>
+                    <td className="tnum">{fmtInt(r.installs)}{!isTotal && r.installs < 200 ? <span className="ml-1.5 rounded border px-1 text-[10px] font-medium text-warning" title="Menos de 200 instalações em 28 dias: leia as taxas com cautela.">amostra baixa</span> : null}</td>
                     <td className="tnum">{fmtBRL(r.cpi ?? 0)}</td>
                     <td><DeltaPill change={rel(r.cpi, p.cpi)} good="down" /></td>
+                    <td className="tnum">{(() => { const c = data.corrections.find((x) => x.channel === r.channel); return c && c.cpi !== null ? <span title={`Estimativa: soma ~${fmtInt(c.lost28)} instalações iOS que o MMP deixou de atribuir.`}>{fmtBRL(c.cpi)}<span className="ml-1 text-[10px] text-muted-foreground">est.</span></span> : <span className="text-muted-foreground">—</span>; })()}</td>
                     <td className="tnum">{fmtBRL(r.cpaSignup ?? 0)}</td>
                     <td className="tnum">{r.activationRate === null ? "—" : fmtPct(r.activationRate, 0)}</td>
                     <td className="tnum">{r.cac === null ? "—" : fmtBRL(r.cac)}</td>
@@ -182,9 +183,36 @@ export function OverviewView({ data }: { data: DashboardData }) {
                 );
               })}
             </DataTable>
+            {data.corrections.map((c) => (
+              <p key={`${c.channel}-${c.platform}`} className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                <strong className="text-foreground">{CHANNEL_LABEL[c.channel]} {c.platform === "ios" ? "iOS" : "Android"}:</strong> desde ~{c.onset ? dm(c.onset) : "—"} o MMP perde atribuição. O CPI bruto ({fmtBRL(c.cpiRaw ?? 0)}) está inflado; com ~{fmtInt(c.lost28)} instalações recuperadas seria {fmtBRL(c.cpi ?? 0)}. CAC das coortes maduras: {fmtBRL(c.cacRaw ?? 0)} bruto, {fmtBRL(c.cac ?? 0)} corrigido. {c.roas90Affected ? `ROAS D90: ${c.roas90Raw?.toFixed(2).replace(".", ",")}× bruto, ${c.roas90?.toFixed(2).replace(".", ",")}× corrigido.` : "O ROAS D90 não é afetado: a coorte é anterior ao defeito."} Não pause campanha pelo número bruto.
+              </p>
+            ))}
             <p className="mt-2 text-xs text-muted-foreground">
               Janela: {dm(last28.from)}–{dm(last28.to)} contra os 28 dias anteriores. ROAS ≥ 1,00× significa que a coorte pagou o próprio custo em 90 dias.
             </p>
+          </Panel>
+
+          <Panel id="card-leilao" ai="card-leilao" title="Leilão e criativo por canal" sql="01_channel_summary.sql" info="CPI = (CPM ÷ 1000) ÷ (CTR × instalações por clique). CPM subindo com CTR estável aponta o leilão. CTR caindo com CPM estável aponta criativo cansado. Instalações por clique caindo aponta a loja, o link ou o tracking. Frequência não está nos dados deste painel.">
+            <DataTable head={["Canal", "CPM", "Δ CPM", "CTR", "Δ CTR", "CPC", "Δ CPC", "Instalações por clique", "Δ"]}>
+              {data.last.map((r, i) => {
+                const p = data.prev[i]!;
+                return (
+                  <tr key={r.channel} className={cn(r.channel === "paid_total" && "font-semibold")}>
+                    <td className="whitespace-nowrap"><ChannelTag channel={r.channel} /></td>
+                    <td className="tnum">{fmtBRL(r.cpm ?? 0)}</td>
+                    <td><DeltaPill change={rel(r.cpm, p.cpm)} good="down" /></td>
+                    <td className="tnum">{r.ctr === null ? "—" : fmtPct(r.ctr, 2)}</td>
+                    <td><DeltaPill change={rel(r.ctr, p.ctr)} good="up" /></td>
+                    <td className="tnum">{fmtBRL(r.cpc ?? 0)}</td>
+                    <td><DeltaPill change={rel(r.cpc, p.cpc)} good="down" /></td>
+                    <td className="tnum">{r.installsPerClick === null ? "—" : fmtPct(r.installsPerClick, 1)}</td>
+                    <td><DeltaPill change={rel(r.installsPerClick, p.installsPerClick)} good="up" /></td>
+                  </tr>
+                );
+              })}
+            </DataTable>
+            <p className="mt-2 text-xs text-muted-foreground">Últimos 28 dias contra os 28 anteriores. CPM por mil impressões.</p>
           </Panel>
         </div>
 

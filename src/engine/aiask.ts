@@ -10,6 +10,7 @@ import { brl, brl0, dm, n0, n2, pct, spct } from "./fmt.ts";
 import { buildInsights } from "./insights.ts";
 import { channelSummary, dailySeries, funnel, periods, platformSplit, totals } from "./metrics.ts";
 import type { ChannelMetrics } from "./metrics.ts";
+import { roasConfidence } from "./confidence.ts";
 import { RECON_LABEL, trackingSummary } from "./tracking.ts";
 import { CHANNELS, CHANNEL_LABEL } from "./types.ts";
 import type { Channel, Dataset, DateRange } from "./types.ts";
@@ -276,6 +277,8 @@ function metric(ds: Dataset, q: string): AiAnswer {
   if (key === "roas" && !one) {
     const ok = CHANNELS.filter((c) => (rowFor(matRows, c).roas90 ?? 0) >= 1), no = CHANNELS.filter((c) => (rowFor(matRows, c).roas90 ?? 0) < 1);
     head = `${ok.length ? `${ok.map((c) => CHANNEL_LABEL[c]).join(", ")} pag${ok.length > 1 ? "am" : "a"} o próprio custo em 90 dias (ROAS de 1,00× ou mais)` : "Nenhum canal paga o próprio custo em 90 dias"}${no.length ? `; ${no.map((c) => CHANNEL_LABEL[c]).join(" e ")} não` : ""}. No total pago, o ROAS D90 é ${x2(pick(tot, totM))}`;
+    const weak = roasConfidence(ds).filter((r) => r.lowSample || r.verdict === "inconclusivo");
+    if (weak.length) head += `. Ressalva: ${weak.map((r) => `${CHANNEL_LABEL[r.channel]} tem ${n0(r.n)} instalações na coorte e intervalo de ${x2(r.lo)} a ${x2(r.hi)}`).join("; ")}, então leia com cautela`;
   }
   const days = Math.round((Date.parse(`${per.range.to}T00:00:00Z`) - Date.parse(`${per.range.from}T00:00:00Z`)) / 86400000) + 1;
   const perDay = /por dia|diari|media/.test(n) && (key === "installs" || key === "spend") && !per.empty && days > 0;

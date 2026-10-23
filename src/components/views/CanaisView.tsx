@@ -6,6 +6,7 @@ import { curveSeries, simulate } from "@/lib/dashboard-data";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { CHANNELS, CHANNEL_LABEL } from "@/engine/types";
 import type { Channel } from "@/engine/types";
+import { cn } from "@/lib/utils";
 
 const x2 = (v: number | null) => (v === null ? "—" : `${v.toFixed(2).replace(".", ",")}×`);
 const select = "h-9 rounded-md border bg-background px-2 text-sm";
@@ -83,6 +84,7 @@ function Simulator() {
           ))}
         </DataTable>
       ) : null}
+      <p className="mt-3 text-xs text-muted-foreground">A projeção usa a curva de resposta de cada canal (retorno decrescente), não um retorno linear. Mesmo assim, comece com um teste de 5 a 10% da verba antes de mover mais.</p>
       {s.warnings.length > 0 ? (
         <ul className="mt-3 space-y-1 text-xs text-warning">
           {s.warnings.map((w) => (<li key={w}>⚠ {w}</li>))}
@@ -130,6 +132,57 @@ function ResponseCurve({ data }: { data: DashboardData }) {
   );
 }
 
+const ATTR_NOTE: Partial<Record<Channel, string>> = {
+  dv360: "Display: parte das instalações vem de view-through, então o retorno atribuído tende a vir inflado. Não compare direto com canais de performance.",
+  linkedin_ads: "B2B de ciclo longo e volume pequeno: o D90 pode subestimar o retorno e o intervalo é largo.",
+  meta_ads: "iOS sub-atribuído desde ~22/08. O D90 não é afetado (coorte anterior), mas CPI e CAC recentes são.",
+  google_ads: "Inclui busca de marca, que capta demanda que já existia.",
+  tiktok_ads: "Topo de funil: parte do efeito pode aparecer depois como orgânico.",
+};
+const VERDICT_TXT = { paga: ["Paga o custo", "text-positive"], nao_paga: ["Não paga o custo", "text-danger"], inconclusivo: ["Inconclusivo", "text-warning"] } as const;
+
+function ConfidencePanel({ data }: { data: DashboardData }) {
+  const rr = data.roasConf[0]!.recentRange;
+  const dmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  return (
+    <Panel id="card-confianca" ai="card-confianca" title="Retorno em 90 dias, com confiança e projeção" sql="01_channel_summary.sql" info="ROAS D90 real: coortes com 90 dias completos, com intervalo de 95%. Projeção: ROAS D30 das coortes mais recentes × a razão receita D90 ÷ D30 que o próprio canal teve. A projeção é uma estimativa, não um dado. Se o intervalo cruza 1,00×, não dá para dizer se o canal paga o próprio custo.">
+      <DataTable head={["Canal", "Instalações na coorte", "ROAS D90 real", "Intervalo 95%", "Leitura", `ROAS D90 projetado (coortes ${dmm(rr.from)}–${dmm(rr.to)})`]}>
+        {data.roasConf.map((r) => {
+          const [txt, cls] = VERDICT_TXT[r.verdict];
+          return (
+            <tr key={r.channel}>
+              <td className="whitespace-nowrap"><ChannelTag channel={r.channel} /></td>
+              <td className="tnum">{fmtInt(r.n)}{r.lowSample ? <span className="ml-1.5 rounded border px-1 text-[10px] font-medium text-warning">amostra baixa</span> : null}</td>
+              <td className="tnum">{x2(r.roas)}</td>
+              <td className="tnum text-muted-foreground">{x2(r.lo)} a {x2(r.hi)}</td>
+              <td className={cn("font-medium", cls)}>{txt}</td>
+              <td className="tnum">{x2(r.projected)}</td>
+            </tr>
+          );
+        })}
+      </DataTable>
+      <ul className="mt-3 space-y-1 text-xs leading-relaxed text-muted-foreground">
+        {data.roasConf.filter((r) => ATTR_NOTE[r.channel]).map((r) => (
+          <li key={r.channel}><strong className="text-foreground">{CHANNEL_LABEL[r.channel]}:</strong> {ATTR_NOTE[r.channel]}</li>
+        ))}
+      </ul>
+      <h3 className="mb-1 mt-5 text-sm font-semibold">Atribuído × blended</h3>
+      <DataTable head={["Coortes", "Horizonte", "ROAS atribuído (mídia paga)", "ROAS blended (toda a receita ÷ gasto pago)", "Receita que o MMP chama de orgânico"]}>
+        {data.blended.map((b) => (
+          <tr key={b.horizon}>
+            <td className="whitespace-nowrap">{dmm(b.range.from)} a {dmm(b.range.to)}</td>
+            <td>{b.horizon}</td>
+            <td className="tnum">{x2(b.attributedRoas)}</td>
+            <td className="tnum">{x2(b.blendedRoas)}</td>
+            <td className="tnum">{b.organicShare === null ? "—" : fmtPct(b.organicShare, 0)}</td>
+          </tr>
+        ))}
+      </DataTable>
+      <p className="mt-2 text-xs text-muted-foreground">O blended inclui a receita de usuários que o MMP atribui a orgânico. Se essa parcela sobe sem o orgânico crescer de verdade, o MMP está perdendo atribuição de mídia paga.</p>
+    </Panel>
+  );
+}
+
 export function CanaisView({ data }: { data: DashboardData }) {
   const bars = data.eco.map((e) => ({ name: CHANNEL_LABEL[e.channel], roas: e.roas90 ?? 0, channel: e.channel }));
   return (
@@ -173,6 +226,7 @@ export function CanaisView({ data }: { data: DashboardData }) {
           </DataTable>
         </Panel>
       </div>
+      <ConfidencePanel data={data} />
       <div className="grid gap-4 xl:grid-cols-2">
         <Simulator />
         <ResponseCurve data={data} />

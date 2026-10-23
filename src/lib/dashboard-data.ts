@@ -3,6 +3,10 @@
 
 import { channelEconomics, fitCurves, predictInstalls, simulateShift } from "@/engine/allocation";
 import type { ChannelEconomics, ResponseCurve, Scenario } from "@/engine/allocation";
+import { corrections } from "@/engine/adjust";
+import type { Correction } from "@/engine/adjust";
+import { blended, roasConfidence } from "@/engine/confidence";
+import type { Blended, RoasEstimate } from "@/engine/confidence";
 import { liftInterval } from "@/engine/experiments";
 import { aiAnswer } from "@/engine/aiask";
 import type { AiAnswer } from "@/engine/aiask";
@@ -43,6 +47,10 @@ export interface DashboardData {
   tests: TestResult[];
   /** IC 95% do lift de cada teste (mesma ordem de `tests`) */
   testCi: ({ lo: number; hi: number } | null)[];
+  /** estimativa de atribuição perdida por canal/plataforma (CPI, CAC e ROAS corrigidos) */
+  corrections: Correction[];
+  roasConf: RoasEstimate[];
+  blended: Blended[];
   insights: Insight[];
   funnelAll: Funnel;
   funnelBy: Record<Channel, Funnel>;
@@ -76,6 +84,9 @@ export function getDashboardData(): DashboardData {
   cache = {
     ds,
     weeklyCpi,
+    corrections: corrections(ds),
+    roasConf: roasConfidence(ds),
+    blended: blended(ds),
     per,
     last: channelSummary(ds, per.last28),
     prev: channelSummary(ds, per.prev28),
@@ -130,6 +141,8 @@ export const AI_TARGETS = {
   "card-serie": { label: "Investimento diário e CPI", question: "Por que o CPI mudou?" },
   "card-cpi-canais": { label: "CPI por canal", question: "Por que o CPI do Meta subiu?" },
   "card-quadrante": { label: "Custo × retorno por canal", question: "Compare os canais" },
+  "card-leilao": { label: "Leilão e criativo", question: "O CPM subiu ou o criativo saturou?" },
+  "card-confianca": { label: "Retorno com confiança", question: "Qual canal paga o próprio custo em 90 dias?" },
   "card-canais": { label: "Canais, últimos 28 dias", question: "Compare os canais" },
   "card-insights": { label: "O que merece atenção", question: "Resumo dos principais alertas" },
   "card-economia": { label: "Retorno em 90 dias por canal", question: "Qual canal paga o próprio custo em 90 dias?" },
