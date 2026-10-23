@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/shell/AppShell";
-import { AiPanel } from "@/components/ai/AiPanel";
+import { AiLayer } from "@/components/ai/AiLayer";
 import { OverviewView } from "@/components/views/OverviewView";
 import { CanaisView } from "@/components/views/CanaisView";
 import { FunilView } from "@/components/views/FunilView";
@@ -48,7 +48,7 @@ function Index() {
           {view === "sql" && <SqlView file={file} />}
         </div>
       </AppShell>
-      <AiPanel />
+      <AiLayer />
     </TooltipProvider>
   );
 }

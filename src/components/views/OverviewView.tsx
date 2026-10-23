@@ -1,9 +1,10 @@
-import { Bar, CartesianGrid, ComposedChart, Line, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelTag, DataDetails, DataTable, DeltaPill, Kpi, Legend, Panel, chart, SizedChart } from "@/components/dashboard/primitives";
+import { Bar, CartesianGrid, ComposedChart, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
+import { channelColor, ChannelTag, DataDetails, DataTable, DeltaPill, Kpi, Legend, Panel, chart, SizedChart } from "@/components/dashboard/primitives";
 import { CostReturnChart } from "@/components/dashboard/CostReturnChart";
 import { useGoToCard } from "@/components/shell/use-go-to-card";
 import { fmtBRL, fmtBRLCompact, fmtInt, fmtPct } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
+import { CHANNEL_LABEL } from "@/engine/types";
 import { cn } from "@/lib/utils";
 
 const rel = (a: number | null, b: number | null) => (a !== null && b ? a / b - 1 : null);
@@ -55,11 +56,12 @@ export function OverviewView({ data }: { data: DashboardData }) {
         </button>
       ) : null}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <Kpi label="Investimento" index={0} num={tot.spend} format={fmtBRLCompact} value={fmtBRLCompact(tot.spend)} change={rel(tot.spend, prev.spend)} good="none" hint="28 dias" spark={recent.map((d) => d.spend)} />
-        <Kpi label="Instalações" index={1} num={tot.installs} format={fmtInt} value={fmtInt(tot.installs)} change={rel(tot.installs, prev.installs)} good="up" hint="atribuídas (MMP)" spark={recent.map((d) => d.installs)} />
-        <Kpi label="CPI" index={2} num={tot.cpi ?? 0} format={fmtBRL} value={fmtBRL(tot.cpi ?? 0)} change={rel(tot.cpi, prev.cpi)} good="down" hint="gasto ÷ instalações" spark={fill(recent.map((d) => d.cpi))} />
-        <Kpi label="CPA cadastro" index={3} num={tot.cpaSignup ?? 0} format={fmtBRL} value={fmtBRL(tot.cpaSignup ?? 0)} change={rel(tot.cpaSignup, prev.cpaSignup)} good="down" hint="gasto ÷ cadastros" spark={fill(recent.map((d) => (d.signups ? d.spend / d.signups : null)))} />
+        <Kpi ai="kpi-spend" label="Investimento" index={0} num={tot.spend} format={fmtBRLCompact} value={fmtBRLCompact(tot.spend)} change={rel(tot.spend, prev.spend)} good="none" hint="28 dias" spark={recent.map((d) => d.spend)} />
+        <Kpi ai="kpi-installs" label="Instalações" index={1} num={tot.installs} format={fmtInt} value={fmtInt(tot.installs)} change={rel(tot.installs, prev.installs)} good="up" hint="atribuídas (MMP)" spark={recent.map((d) => d.installs)} />
+        <Kpi ai="kpi-cpi" label="CPI" index={2} num={tot.cpi ?? 0} format={fmtBRL} value={fmtBRL(tot.cpi ?? 0)} change={rel(tot.cpi, prev.cpi)} good="down" hint="gasto ÷ instalações" spark={fill(recent.map((d) => d.cpi))} />
+        <Kpi ai="kpi-cpa" label="CPA cadastro" index={3} num={tot.cpaSignup ?? 0} format={fmtBRL} value={fmtBRL(tot.cpaSignup ?? 0)} change={rel(tot.cpaSignup, prev.cpaSignup)} good="down" hint="gasto ÷ cadastros" spark={fill(recent.map((d) => (d.signups ? d.spend / d.signups : null)))} />
         <Kpi
+          ai="kpi-cac"
           label="CAC"
           index={4}
           num={tot.cac ?? 0}
@@ -71,6 +73,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
           info="Gasto ÷ usuários que usaram o cartão em até 14 dias. Só entram coortes com 14 dias de vida: instalações mais recentes ainda não tiveram tempo de ativar."
         />
         <Kpi
+          ai="kpi-roas"
           label="ROAS D90"
           index={5}
           num={mat.roas90 ?? 0}
@@ -83,7 +86,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="min-w-0 space-y-4">
-          <Panel id="card-serie" title="Investimento diário e CPI · 90 dias" sql="03_daily_series.sql" info="Dois gráficos, um eixo cada: misturar R$ de investimento com R$ de CPI em escalas diferentes engana a leitura. A linha tracejada é a média móvel de 7 dias do CPI.">
+          <Panel id="card-serie" ai="card-serie" title="Investimento diário e CPI · 90 dias" sql="03_daily_series.sql" info="Dois gráficos, um eixo cada: misturar R$ de investimento com R$ de CPI em escalas diferentes engana a leitura. A linha tracejada é a média móvel de 7 dias do CPI.">
             <Legend className="mb-2" items={[{ label: "Investimento por dia", color: "var(--cat-6)", kind: "bar" }, { label: "CPI do dia", color: "var(--muted-foreground)", kind: "line" }, { label: "CPI, média de 7 dias", color: "var(--primary)", kind: "line" }]} />
             <div className="h-28">
               <SizedChart>{(w, h) => (<>
@@ -115,7 +118,27 @@ export function OverviewView({ data }: { data: DashboardData }) {
             />
           </Panel>
 
-          <Panel id="card-quadrante" title="Custo × retorno por canal" info="Cada bolha é um canal. Eixo horizontal: CPI dos últimos 28 dias. Vertical: ROAS D90 das coortes maduras. Tamanho: investimento. Abaixo da linha de 1,00× a coorte não paga o próprio custo em 90 dias. CPI baixo não garante retorno." sql="01_channel_summary.sql">
+          <Panel id="card-cpi-canais" ai="card-cpi-canais" title="CPI por canal, por semana" sql="03_daily_series.sql" info="Cada linha é um canal, semana a semana, no mesmo eixo em R$. Semanas com menos de 15 instalações no canal ficam em branco. Separa o canal que piorou do canal que sempre foi caro.">
+            <Legend className="mb-2" items={data.weeklyCpi.series.map((s) => ({ label: CHANNEL_LABEL[s.channel], color: channelColor(s.channel), kind: "line" as const }))} />
+            <div className="h-52">
+              <SizedChart>{(w, h) => (
+                <LineChart width={w} height={h} data={data.weeklyCpi.x.map((x, i) => ({ x, ...Object.fromEntries(data.weeklyCpi.series.map((s) => [s.channel, s.values[i]])) }))} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <CartesianGrid stroke={chart.grid} vertical={false} />
+                  <XAxis dataKey="x" tick={chart.tick} tickLine={false} axisLine={false} minTickGap={20} />
+                  <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => fmtBRL(v, 0)} />
+                  <Tooltip {...chart.tooltip} cursor={chart.crosshair} labelFormatter={(d: string) => `Semana de ${d}`} formatter={(v: number, n: string) => [fmtBRL(v), CHANNEL_LABEL[n as keyof typeof CHANNEL_LABEL] ?? n]} />
+                  {data.weeklyCpi.series.map((s) => <Line key={s.channel} dataKey={s.channel} stroke={channelColor(s.channel)} strokeWidth={2} dot={{ r: 2.5 }} connectNulls={false} isAnimationActive={false} />)}
+                </LineChart>
+              )}</SizedChart>
+            </div>
+            <DataDetails
+              head={["Semana", ...data.weeklyCpi.series.map((s) => CHANNEL_LABEL[s.channel])]}
+              rows={data.weeklyCpi.x.map((x, i) => [x, ...data.weeklyCpi.series.map((s) => (s.values[i] === null ? "—" : fmtBRL(s.values[i]!)))]).reverse()}
+              label="Ver as semanas em tabela"
+            />
+          </Panel>
+
+          <Panel id="card-quadrante" ai="card-quadrante" title="Custo × retorno por canal" info="Cada bolha é um canal. Eixo horizontal: CPI dos últimos 28 dias. Vertical: ROAS D90 das coortes maduras. Tamanho: investimento. Abaixo da linha de 1,00× a coorte não paga o próprio custo em 90 dias. CPI baixo não garante retorno." sql="01_channel_summary.sql">
             <div className="h-72">
               <SizedChart>{(w, h) => <CostReturnChart width={w} height={h} rows={data.last} mature={data.mature} />}</SizedChart>
             </div>
@@ -123,7 +146,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
           </Panel>
 
           <Panel
-            id="card-canais"
+            id="card-canais" ai="card-canais"
             title="Canais · últimos 28 dias"
             sql="01_channel_summary.sql"
             info="Topo de funil (gasto, instalações, CPI, CPA) usa os últimos 28 dias. Ativação, CAC e ROAS D90 usam coortes maduras e, por isso, vêm de instalações mais antigas (mai–jul para o ROAS)."
@@ -154,7 +177,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
           </Panel>
         </div>
 
-        <Panel id="card-insights" title="O que merece atenção" info="Insights gerados por regras sobre os números do motor. Clique para ir ao card de origem.">
+        <Panel id="card-insights" ai="card-insights" title="O que merece atenção" info="Insights gerados por regras sobre os números do motor. Clique para ir ao card de origem.">
           <ul className="space-y-3">
             {data.insights.slice(0, 8).map((i) => (
               <li key={i.id}>

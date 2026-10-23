@@ -33,7 +33,7 @@ export function TrackingView({ data }: { data: DashboardData }) {
         <Kpi label="Saudáveis" value={String(okCount)} hint="dentro do normal" />
       </div>
 
-      <Panel id="card-mapa" title="Mapa de saúde por canal" info="Cada célula mostra o pior desvio entre as plataformas daquele canal naquela checagem, contra o nível normal do próprio canal. Passe pelo mapa para achar o problema; a tabela abaixo mostra o detalhe.">
+      <Panel id="card-mapa" ai="card-mapa" title="Mapa de saúde por canal" info="Cada célula mostra o pior desvio entre as plataformas daquele canal naquela checagem, contra o nível normal do próprio canal. Passe pelo mapa para achar o problema; a tabela abaixo mostra o detalhe.">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[34rem] border-separate border-spacing-1.5 text-sm">
             <thead>
@@ -70,7 +70,7 @@ export function TrackingView({ data }: { data: DashboardData }) {
       </Panel>
 
       <Panel
-        id="card-recon"
+        id="card-recon" ai="card-recon"
         title="Reconciliação entre fontes"
         sql="04_reconciliation.sql"
         info="Nenhuma fonte é a verdade. A plataforma sempre infla instalações frente ao MMP (view-through, modelagem), então a razão normal não é 1. O alerta é o desvio da razão atual (14 dias) contra a do período-base (primeiros 60 dias)."
@@ -97,7 +97,7 @@ export function TrackingView({ data }: { data: DashboardData }) {
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel id="card-eventos" title="Eventos do tagbook" sql="05_event_health.sql" info="Contagem do SDK/GA4 ÷ uma referência independente (backend para eventos do app). Clique numa linha para ver a série diária.">
+        <Panel id="card-eventos" ai="card-eventos" title="Eventos do tagbook" sql="05_event_health.sql" info="Contagem do SDK/GA4 ÷ uma referência independente (backend para eventos do app). Clique numa linha para ver a série diária.">
           <DataTable head={["Evento", "Plataforma", "Razão-base", "Atual", "Desvio", "Status"]}>
             {tracking.events.map((e) => (
               <tr
@@ -117,7 +117,7 @@ export function TrackingView({ data }: { data: DashboardData }) {
           </DataTable>
         </Panel>
 
-        <Panel id="card-evento-serie" title={`Série diária · ${ev.event} (${PLAT[ev.platform]})`}>
+        <Panel id="card-evento-serie" ai="card-evento-serie" title={`Série diária · ${ev.event} (${PLAT[ev.platform]})`}>
           <div className="h-52">
             <SizedChart>{(w, h) => (<>
               <LineChart width={w} height={h} data={series} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>

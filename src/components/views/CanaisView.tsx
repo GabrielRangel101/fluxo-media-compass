@@ -19,7 +19,7 @@ function Simulator() {
 
   return (
     <Panel
-      id="card-simulador"
+      id="card-simulador" ai="card-simulador"
       title="Simulador de realocação de verba"
       sql="08_curve_inputs.sql"
       info="Move uma fatia do gasto dos últimos 28 dias de um canal para outro, mantendo o orçamento total. Usa a curva de resposta de cada canal (retorno decrescente). É uma projeção para formular hipótese de teste, não uma garantia."
@@ -78,7 +78,7 @@ function ResponseCurve({ data }: { data: DashboardData }) {
   const e = data.eco.find((x) => x.channel === channel)!;
   return (
     <Panel
-      id="card-curva"
+      id="card-curva" ai="card-curva"
       title="Curva de resposta"
       sql="08_curve_inputs.sql"
       info="Instalações = A × gasto^β, ajustada por regressão log-log no período sem falhas de coleta (até D-45). β < 1 indica retorno decrescente: o próximo real compra menos que o anterior."
@@ -116,7 +116,7 @@ export function CanaisView({ data }: { data: DashboardData }) {
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel
-          id="card-economia"
+          id="card-economia" ai="card-economia"
           title="Retorno em 90 dias por canal"
           sql="01_channel_summary.sql"
           info="ROAS D90 = receita acumulada em 90 dias ÷ gasto, em instalações com 90 dias completos. A linha tracejada em 1,00× é o ponto em que o canal paga o próprio custo."
@@ -137,7 +137,7 @@ export function CanaisView({ data }: { data: DashboardData }) {
           </div>
         </Panel>
 
-        <Panel id="card-unit" title="Unit economics por canal" sql="01_channel_summary.sql" info="CPI e CPI marginal vêm dos últimos 28 dias. Ativação, CAC, LTV90 e ROAS vêm de coortes maduras.">
+        <Panel id="card-unit" ai="card-unit" title="Unit economics por canal" sql="01_channel_summary.sql" info="CPI e CPI marginal vêm dos últimos 28 dias. Ativação, CAC, LTV90 e ROAS vêm de coortes maduras.">
           <DataTable head={["Canal", "CPI", "CPI marginal", "Ativação", "CAC", "LTV90", "ROAS D90"]}>
             {data.eco.map((e) => (
               <tr key={e.channel}>

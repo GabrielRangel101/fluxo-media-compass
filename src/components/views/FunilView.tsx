@@ -17,7 +17,7 @@ export function FunilView({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-4">
       <Panel
-        id="card-funil"
+        id="card-funil" ai="card-funil"
         title="Funil de coorte"
         sql="02_funnel.sql"
         info="Coortes com 14+ dias de vida, para o fundo do funil ser comparável. Custo por unidade = gasto do período ÷ contagem da etapa."
@@ -64,7 +64,7 @@ export function FunilView({ data }: { data: DashboardData }) {
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Panel id="card-funil-canais" title="Conversão entre etapas, por canal" sql="02_funnel.sql">
+        <Panel id="card-funil-canais" ai="card-funil-canais" title="Conversão entre etapas, por canal" sql="02_funnel.sql">
           <DataTable head={["Canal", "Instalou → cadastrou", "Cadastro → KYC", "KYC → uso do cartão", "Instalou → usou"]}>
             {CHANNELS.map((c) => {
               const st = data.funnelBy[c].steps;
@@ -84,7 +84,7 @@ export function FunilView({ data }: { data: DashboardData }) {
           </DataTable>
         </Panel>
 
-        <Panel id="card-plataforma" title="iOS × Android · CPI, últimos 28 dias" sql="07_platform_split.sql">
+        <Panel id="card-plataforma" ai="card-plataforma" title="iOS × Android · CPI, últimos 28 dias" sql="07_platform_split.sql">
           <DataTable head={["Canal", "CPI Android", "CPI iOS", "iOS vs. Android"]}>
             {CHANNELS.map((c) => {
               const a = data.platform.find((p) => p.channel === c && p.platform === "android");

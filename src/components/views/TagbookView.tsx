@@ -14,7 +14,7 @@ export function TagbookView({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-4">
       <Panel
-        id="card-tagbook"
+        id="card-tagbook" ai="card-tagbook"
         title="Plano de coleta (tagbook)"
         sql="05_event_health.sql"
         info="Cada evento tem dono, gatilho, parâmetros, destinos e uma referência independente usada para saber se a coleta está correta. O status vem da checagem de saúde, não de um campo preenchido à mão."

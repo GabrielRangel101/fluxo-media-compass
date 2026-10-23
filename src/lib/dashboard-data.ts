@@ -3,6 +3,8 @@
 
 import { channelEconomics, fitCurves, predictInstalls, simulateShift } from "@/engine/allocation";
 import type { ChannelEconomics, ResponseCurve, Scenario } from "@/engine/allocation";
+import { aiAnswer } from "@/engine/aiask";
+import type { AiAnswer } from "@/engine/aiask";
 import { answer } from "@/engine/ask";
 import type { Answer } from "@/engine/ask";
 import { readTests } from "@/engine/experiments";
@@ -42,6 +44,8 @@ export interface DashboardData {
   funnelAll: Funnel;
   funnelBy: Record<Channel, Funnel>;
   platform: PlatformRow[];
+  /** CPI semanal por canal (agregação de apresentação sobre as séries diárias do motor) */
+  weeklyCpi: { x: string[]; series: { channel: Channel; values: (number | null)[] }[] };
 }
 
 let cache: DashboardData | null = null;
@@ -51,15 +55,30 @@ export function getDashboardData(): DashboardData {
   const ds = generateDataset();
   const per = periods(ds);
   const chartRange: DateRange = { from: ds.dates[ds.dates.length - 90]!, to: ds.meta.refDate };
+  const dailyByChannel = Object.fromEntries(CHANNELS.map((c) => [c, dailySeries(ds, chartRange, c)])) as Record<Channel, DailyPoint[]>;
+  const weekStarts: string[] = [];
+  for (let i = 0; i < dailyByChannel.google_ads.length; i += 7) weekStarts.push(dailyByChannel.google_ads[i]!.date);
+  const weeklyCpi = {
+    x: weekStarts.map((d) => `${d.slice(8, 10)}/${d.slice(5, 7)}`),
+    series: CHANNELS.map((channel) => ({
+      channel,
+      values: weekStarts.map((_, w) => {
+        const b = dailyByChannel[channel].slice(w * 7, w * 7 + 7);
+        const sp = b.reduce((a, d) => a + d.spend, 0), ins = b.reduce((a, d) => a + d.installs, 0);
+        return ins >= 15 ? sp / ins : null;
+      }),
+    })),
+  };
   cache = {
     ds,
+    weeklyCpi,
     per,
     last: channelSummary(ds, per.last28),
     prev: channelSummary(ds, per.prev28),
     mature: channelSummary(ds, per.mature90),
     deltas: deltas(ds, per.last28, per.prev28),
     daily: dailySeries(ds, chartRange),
-    dailyByChannel: Object.fromEntries(CHANNELS.map((c) => [c, dailySeries(ds, chartRange, c)])) as Record<Channel, DailyPoint[]>,
+    dailyByChannel,
     eco: channelEconomics(ds),
     curves: fitCurves(ds),
     tracking: trackingSummary(ds),
@@ -93,4 +112,57 @@ export function curveSeries(channel: Channel) {
     return { spend, installs: predictInstalls(c, spend) };
   });
   return { points: c.points, line, beta: c.beta, blockDays: c.lowConfidence ? 7 : 1, lowConfidence: c.lowConfidence };
+}
+
+// ------------------------------------------------------------------ Mesa de análise: card analisável → pergunta
+export const AI_TARGETS = {
+  "kpi-spend": { label: "Investimento", question: "Como está o investimento por canal?" },
+  "kpi-installs": { label: "Instalações", question: "Como estão as instalações por canal?" },
+  "kpi-cpi": { label: "CPI", question: "Por que o CPI mudou?" },
+  "kpi-cpa": { label: "CPA de cadastro", question: "Como está o CPA de cadastro por canal?" },
+  "kpi-cac": { label: "CAC", question: "Qual o CAC por canal?" },
+  "kpi-roas": { label: "ROAS D90", question: "Qual canal paga o próprio custo em 90 dias?" },
+  "card-serie": { label: "Investimento diário e CPI", question: "Por que o CPI mudou?" },
+  "card-cpi-canais": { label: "CPI por canal", question: "Por que o CPI do Meta subiu?" },
+  "card-quadrante": { label: "Custo × retorno por canal", question: "Compare os canais" },
+  "card-canais": { label: "Canais, últimos 28 dias", question: "Compare os canais" },
+  "card-insights": { label: "O que merece atenção", question: "Resumo dos principais alertas" },
+  "card-economia": { label: "Retorno em 90 dias por canal", question: "Qual canal paga o próprio custo em 90 dias?" },
+  "card-unit": { label: "Unit economics por canal", question: "Qual o CAC por canal?" },
+  "card-simulador": { label: "Simulador de verba", question: "Qual a melhor realocação de 20% da verba?" },
+  "card-curva": { label: "Curva de resposta", question: "Qual o CPI marginal de cada canal?" },
+  "card-funil": { label: "Funil do app", question: "Onde perco mais no funil?" },
+  "card-funil-canais": { label: "Conversão por canal", question: "Compare o funil entre os canais" },
+  "card-plataforma": { label: "iOS × Android", question: "iOS ou Android tem CPI menor?" },
+  "card-testes": { label: "Leitura dos testes", question: "Quais testes A/B posso ler?" },
+  "card-mapa": { label: "Mapa de saúde por canal", question: "Quais checagens de coleta estão quebradas?" },
+  "card-recon": { label: "Reconciliação entre fontes", question: "Como a reconciliação funciona?" },
+  "card-eventos": { label: "Eventos do tagbook", question: "Quais eventos do tagbook têm problema?" },
+  "card-evento-serie": { label: "Série diária do evento", question: "Quais eventos do tagbook têm problema?" },
+  "card-tagbook": { label: "Plano de coleta", question: "O que é o tagbook e como ele é monitorado?" },
+} as const satisfies Record<string, { label: string; question: string }>;
+export type AiTargetId = keyof typeof AI_TARGETS;
+export const isAiTarget = (id: string | undefined): id is AiTargetId => !!id && id in AI_TARGETS;
+
+const answerCache = new Map<string, AiAnswer>();
+/** Chamado só de uma tarefa agendada do navegador; os componentes de IA não fazem conta de negócio. */
+export function getAiAnswer(question: string): AiAnswer {
+  const hit = answerCache.get(question);
+  if (hit) return hit;
+  const result = aiAnswer(getDashboardData().ds, question);
+  if (answerCache.size >= 60) answerCache.delete(answerCache.keys().next().value ?? "");
+  answerCache.set(question, result);
+  return result;
+}
+
+const AGENDA_QUESTION: Record<string, string> = {
+  tracking: "Quais checagens de coleta estão quebradas?",
+  eficiencia: "Por que o CPI mudou?",
+  canais: "Compare os canais",
+  testes: "Quais testes A/B posso ler?",
+  funil: "Onde perco mais no funil?",
+};
+/** Pauta do dia: os achados mais graves do motor de regras, cada um com a pergunta que o aprofunda. */
+export function aiAgenda() {
+  return getDashboardData().insights.slice(0, 3).map((i) => ({ id: i.id, title: i.title, question: AGENDA_QUESTION[i.topic] ?? "Resumo dos principais alertas" }));
 }

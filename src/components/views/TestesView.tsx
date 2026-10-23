@@ -41,7 +41,7 @@ export function TestesView({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-4">
       <Panel
-        id="card-testes"
+        id="card-testes" ai="card-testes"
         title="Como cada teste é lido"
         sql="06_ab_tests.sql"
         info="Métrica primária: instalações por impressão (vale também para DV360, com view-through). Teste z de duas proporções, bicaudal, 5%. A significância roda no motor TypeScript; o SQL entrega as taxas e a divisão de impressões."

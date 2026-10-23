@@ -2,7 +2,9 @@ import { useSize } from "@/hooks/use-size";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Database, Info } from "lucide-react";
+import { Database, Info, Sparkles } from "lucide-react";
+import { aiStore, useAiTarget } from "@/components/ai/ai-store";
+import type { AiTargetId } from "@/lib/dashboard-data";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { fmtSignedPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -55,19 +57,36 @@ export function SqlLink({ file }: { file: string }) {
   );
 }
 
-export function Panel({
-  id, title, info, sql, actions, className, children,
-}: {
-  id?: string; title: string; info?: ReactNode; sql?: string; actions?: ReactNode; className?: string; children: ReactNode;
-}) {
+/** Botão ✦ que abre a Mesa de análise já focada neste card. */
+export function AskButton({ target, label }: { target: AiTargetId; label: string }) {
   return (
-    <section id={id} className={cn("scroll-mt-24 rounded-2xl border bg-card p-5 text-card-foreground", className)}>
+    <button
+      type="button"
+      onClick={() => aiStore.open(target)}
+      aria-label={`Analisar com IA: ${label}`}
+      title="Analisar com IA"
+      className="grid size-7 shrink-0 place-items-center rounded-md text-primary transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      <Sparkles className="size-3.5" aria-hidden />
+    </button>
+  );
+}
+
+export function Panel({
+  id, title, info, sql, actions, className, children, ai,
+}: {
+  id?: string; title: string; info?: ReactNode; sql?: string; actions?: ReactNode; className?: string; children: ReactNode; ai?: AiTargetId;
+}) {
+  const target = useAiTarget(ai);
+  return (
+    <section id={id} {...target.props} className={cn("scroll-mt-24 rounded-2xl border bg-card p-5 text-card-foreground", className)}>
       <header className="mb-4 flex min-h-7 items-center gap-2">
         <h2 className="font-display truncate text-[17px] font-semibold tracking-tight text-foreground">{title}</h2>
         {info ? <InfoTip text={info} /> : null}
         <div className="ml-auto flex items-center gap-2">
           {actions}
           {sql ? <SqlLink file={sql} /> : null}
+          {ai ? <AskButton target={ai} label={title} /> : null}
         </div>
       </header>
       {children}
@@ -123,18 +142,20 @@ function useCountUp(target: number | undefined, delayMs: number) {
 }
 
 export function Kpi({
-  label, value, num, format, index = 0, change, good, hint, info, spark,
+  label, value, num, format, index = 0, change, good, hint, info, spark, ai,
 }: {
   label: string; value: string; num?: number; format?: (n: number) => string; index?: number;
-  change?: number | null; good?: "up" | "down" | "none"; hint?: string; info?: ReactNode; spark?: number[];
+  change?: number | null; good?: "up" | "down" | "none"; hint?: string; info?: ReactNode; spark?: number[]; ai?: AiTargetId;
 }) {
+  const target = useAiTarget(ai);
   const shown = useCountUp(num, index * 70);
   const text = num !== undefined && format && shown !== undefined ? format(shown) : value;
   return (
-    <div className="kpi-in relative flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl border bg-card p-4" style={{ ["--i" as string]: index }}>
+    <div {...target.props} className="kpi-in relative flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl border bg-card p-4" style={{ ["--i" as string]: index }}>
       <div className="flex items-center gap-1.5">
         <span className="truncate text-[13px] font-medium text-muted-foreground">{label}</span>
         {info ? <InfoTip text={info} /> : null}
+        {ai ? <span className="-my-1 ml-auto"><AskButton target={ai} label={label} /></span> : null}
       </div>
       <div className="font-display tnum text-[30px] font-semibold leading-none tracking-tight"><span className="sr-only">{value}</span><span aria-hidden>{text}</span></div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">

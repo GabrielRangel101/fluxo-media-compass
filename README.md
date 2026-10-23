@@ -80,3 +80,7 @@ Uma razão entre fontes nunca é comparada a 1: a plataforma **sempre** infla in
 - Dados sintéticos: os números provam o método, não retratam nenhum mercado.
 - A curva de resposta só extrapola dentro de 60%–160% do gasto atual e assume eficiência constante. O simulador serve para formular hipótese de teste, não para decidir verba sozinho.
 - LinkedIn tem poucas instalações por dia: a elasticidade dele é estimada em blocos semanais e marcada como baixa confiança.
+
+## Mesa de análise (Modo IA)
+
+Botão **Mesa de análise** no topo ou o ✦ em qualquer KPI/gráfico: o dashboard escurece, o card escolhido fica em foco e os cards gerados (barras, linhas, tabelas, indicadores) se conectam a ele por linhas, arrastáveis. Dá para perguntar qualquer coisa sobre os dados do painel: por que o CPI subiu (decomposição CPM × CTR × conversão), períodos ("últimos 14 dias", "março"), simulação de verba, curva de resposta, coleta/tagbook, testes A/B, funil, iOS × Android, e como cada métrica é calculada. Pergunta fora do escopo recebe uma resposta de escopo, nunca um palpite. Todo número vem do motor (`src/engine/aiask.ts` só roteia e redige; testes em `tests/ai-ask.test.ts`).
