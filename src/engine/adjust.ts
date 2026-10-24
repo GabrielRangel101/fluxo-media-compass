@@ -47,9 +47,10 @@ export function corrections(ds: Dataset): Correction[] {
     const searchFrom = addDays(ds.meta.startDate, BASELINE_DAYS);
     let onset: string | null = null;
     for (let d = searchFrom; d <= ds.meta.refDate; d = addDays(d, 1)) {
-      let p = 0, q = 0;
-      for (let k = 0; k < 3; k++) { const x = days.get(addDays(d, k)); if (x) { p += x.plat; q += x.mmp; } }
-      if (q > 0 && p / q > r0 * (1 + WARN_DEV)) { onset = d; break; }
+      // início = primeiro dia em que ele e os dois seguintes ficam, cada um, acima do nível normal
+      let all = true;
+      for (let k = 0; k < 3 && all; k++) { const x = days.get(addDays(d, k)); all = !!x && x.mmp > 0 && x.plat / x.mmp > r0 * (1 + WARN_DEV); }
+      if (all) { onset = d; break; }
     }
     const lostIn = (r: DateRange) => {
       if (!onset) return 0;
@@ -62,7 +63,7 @@ export function corrections(ds: Dataset): Correction[] {
     };
     const s28 = sumRange(row.channel, per.last28);
     const lost28 = lostIn(per.last28);
-    const cohortM: DateRange = { from: ds.meta.startDate, to: mat.d14 };
+    const cohortM: DateRange = per.cohort14;
     const m14 = sumRange(row.channel, cohortM);
     const lostM = lostIn(cohortM);
     const m90 = sumRange(row.channel, per.mature90);

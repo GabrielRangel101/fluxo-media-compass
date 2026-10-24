@@ -285,5 +285,7 @@ export function periods(ds: Dataset) {
   const m = maturity(ds);
   // Coorte madura para unit economics: instalações entre D+0 do dataset e a última data com D90 completo.
   const mature90: DateRange = { from: ds.meta.startDate, to: m.d90 };
-  return { last28, prev28, mature90, full: { from: ds.meta.startDate, to } as DateRange };
+  // Coortes de 28 dias que já completaram D14: base única de CAC e ativação em todo o painel.
+  const cohort14: DateRange = { from: addDays(m.d14, -27), to: m.d14 };
+  return { last28, prev28, mature90, cohort14, full: { from: ds.meta.startDate, to } as DateRange };
 }

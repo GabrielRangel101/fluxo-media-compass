@@ -1,8 +1,14 @@
 // Única porta de entrada dos dados para a UI: um singleton sobre o motor (src/engine).
 // Os componentes são apresentacionais: não fazem conta de negócio, só leem o que está aqui.
 
-import { channelEconomics, fitCurves, predictInstalls, simulateShift } from "@/engine/allocation";
+import { bestShift, channelEconomics, fitCurves, predictInstalls, simulateShift } from "@/engine/allocation";
 import type { ChannelEconomics, ResponseCurve, Scenario } from "@/engine/allocation";
+import { googleBrandSplit } from "@/engine/brand";
+import type { BrandGroup } from "@/engine/brand";
+import { organicWeekly } from "@/engine/organic";
+import type { OrganicWeekly } from "@/engine/organic";
+import { planTest } from "@/engine/testplan";
+import type { TestPlan } from "@/engine/testplan";
 import { corrections } from "@/engine/adjust";
 import type { Correction } from "@/engine/adjust";
 import { blended, roasConfidence } from "@/engine/confidence";
@@ -14,6 +20,7 @@ import { answer } from "@/engine/ask";
 import type { Answer } from "@/engine/ask";
 import { readTests } from "@/engine/experiments";
 import type { TestResult } from "@/engine/experiments";
+import { addDays } from "@/engine/calendar";
 import { generateDataset } from "@/engine/generate";
 import { buildInsights } from "@/engine/insights";
 import type { Insight, ViewId } from "@/engine/insights";
@@ -34,10 +41,13 @@ export function parseView(v: unknown): ViewId | undefined {
 
 export interface DashboardData {
   ds: Dataset;
-  per: { last28: DateRange; prev28: DateRange; mature90: DateRange; full: DateRange };
+  per: { last28: DateRange; prev28: DateRange; mature90: DateRange; cohort14: DateRange; full: DateRange };
   last: ChannelMetrics[];
   prev: ChannelMetrics[];
   mature: ChannelMetrics[];
+  /** coortes de 28 dias que completaram D14: base única de CAC e ativação */
+  cohort14: ChannelMetrics[];
+  cohort14Prev: ChannelMetrics[];
   deltas: Delta[];
   daily: DailyPoint[];
   dailyByChannel: Record<Channel, DailyPoint[]>;
@@ -49,6 +59,11 @@ export interface DashboardData {
   testCi: ({ lo: number; hi: number } | null)[];
   /** estimativa de atribuição perdida por canal/plataforma (CPI, CAC e ROAS corrigidos) */
   corrections: Correction[];
+  organic: OrganicWeekly;
+  googleBrand: BrandGroup[];
+  /** melhor realocação de 20%: o mesmo cenário do alerta, do simulador e do plano de teste */
+  bestShift: Scenario | null;
+  testPlan: TestPlan | null;
   roasConf: RoasEstimate[];
   blended: Blended[];
   insights: Insight[];
@@ -68,6 +83,7 @@ export function getDashboardData(): DashboardData {
   const chartRange: DateRange = { from: ds.dates[ds.dates.length - 90]!, to: ds.meta.refDate };
   const dailyByChannel = Object.fromEntries(CHANNELS.map((c) => [c, dailySeries(ds, chartRange, c)])) as Record<Channel, DailyPoint[]>;
   const tests = readTests(ds);
+  const shift = bestShift(ds, 0.2);
   const weekStarts: string[] = [];
   for (let i = 0; i < dailyByChannel.google_ads.length; i += 7) weekStarts.push(dailyByChannel.google_ads[i]!.date);
   const weeklyCpi = {
@@ -85,12 +101,18 @@ export function getDashboardData(): DashboardData {
     ds,
     weeklyCpi,
     corrections: corrections(ds),
+    organic: organicWeekly(ds),
+    googleBrand: googleBrandSplit(ds),
+    bestShift: shift,
+    testPlan: shift ? planTest(ds, shift) : null,
     roasConf: roasConfidence(ds),
     blended: blended(ds),
     per,
     last: channelSummary(ds, per.last28),
     prev: channelSummary(ds, per.prev28),
     mature: channelSummary(ds, per.mature90),
+    cohort14: channelSummary(ds, per.cohort14),
+    cohort14Prev: channelSummary(ds, { from: addDays(per.cohort14.from, -28), to: addDays(per.cohort14.from, -1) }),
     deltas: deltas(ds, per.last28, per.prev28),
     daily: dailySeries(ds, chartRange),
     dailyByChannel,
@@ -127,7 +149,7 @@ export function curveSeries(channel: Channel) {
     const spend = lo + ((hi - lo) * i) / 23;
     return { spend, installs: predictInstalls(c, spend) };
   });
-  return { points: c.points, line, beta: c.beta, blockDays: c.lowConfidence ? 7 : 1, lowConfidence: c.lowConfidence };
+  return { points: c.points, line, beta: c.beta, betaSe: c.betaSe, r2: c.r2, blockDays: c.lowConfidence ? 7 : 1, lowConfidence: c.lowConfidence };
 }
 
 // ------------------------------------------------------------------ Mesa de análise: card analisável → pergunta
@@ -143,6 +165,9 @@ export const AI_TARGETS = {
   "card-quadrante": { label: "Custo × retorno por canal", question: "Compare os canais" },
   "card-leilao": { label: "Leilão e criativo", question: "O CPM subiu ou o criativo saturou?" },
   "card-confianca": { label: "Retorno com confiança", question: "Qual canal paga o próprio custo em 90 dias?" },
+  "card-organico": { label: "Parcela de orgânico por semana", question: "Quais checagens de coleta estão quebradas?" },
+  "card-google-marca": { label: "Google: marca × sem marca", question: "Qual o CPI marginal de cada canal?" },
+  "card-plano-teste": { label: "Plano de teste da realocação", question: "Qual a melhor realocação de 20% da verba?" },
   "card-canais": { label: "Canais, últimos 28 dias", question: "Compare os canais" },
   "card-insights": { label: "O que merece atenção", question: "Resumo dos principais alertas" },
   "card-economia": { label: "Retorno em 90 dias por canal", question: "Qual canal paga o próprio custo em 90 dias?" },

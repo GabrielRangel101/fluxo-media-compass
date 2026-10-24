@@ -191,3 +191,20 @@ test("confiança do ROAS: intervalo contém o ROAS, veredito coerente, blended �
   assert.equal(rc.find((r) => r.channel === "linkedin_ads")!.lowSample, true);
   for (const b of blended(ds)) assert.ok(b.blendedRoas! >= b.attributedRoas!);
 });
+
+import { googleBrandSplit } from "../src/engine/brand.ts";
+import { organicWeekly } from "../src/engine/organic.ts";
+import { planTest } from "../src/engine/testplan.ts";
+import { bestShift } from "../src/engine/allocation.ts";
+test("marca × sem marca soma o Google; orgânico sobe depois do defeito; faixa do simulador contém o ponto; plano de teste", () => {
+  const [marca, sem] = googleBrandSplit(ds);
+  assert.ok(marca!.spendShare + sem!.spendShare > 0.999 && marca!.spendShare + sem!.spendShare < 1.001);
+  assert.ok(marca!.roas90! > sem!.roas90!, "marca tende a ter ROAS maior que o restante");
+  const o = organicWeekly(ds);
+  assert.ok(o.share[o.share.length - 1]! > o.baseline + 0.02, "orgânico acima da linha de base");
+  const s = simulateShift(ds, "dv360", "google_ads", 0.2);
+  assert.ok(s.band.installs[0] <= s.installsDelta && s.installsDelta <= s.band.installs[1]);
+  const plan = planTest(ds, bestShift(ds, 0.2)!);
+  assert.ok(plan.pctMoved <= 0.1 && plan.weeks >= 2);
+  assert.ok(plan.preconditions.length > 0, "Google e Meta têm checagens quebradas");
+});

@@ -71,6 +71,8 @@ export function answer(ds: Dataset, question: string): Answer {
   const label = (c: Channel) => CHANNEL_LABEL[c];
   const row = (c: Channel) => last.find((r) => r.channel === c)!;
   const mrow = (c: Channel) => mature.find((r) => r.channel === c)!;
+  const c14 = channelSummary(ds, per.cohort14);
+  const krow = (c: Channel | "paid_total") => c14.find((r) => r.channel === c)!;
 
   switch (intent) {
     case "cpi": {
@@ -99,13 +101,13 @@ export function answer(ds: Dataset, question: string): Answer {
       return {
         intent, title: intent === "cac" ? "CAC e retorno por canal" : "ROAS e LTV por canal · coortes maduras",
         paragraphs: [
-          "CAC = gasto ÷ usuários que usaram o cartão em até 14 dias. ROAS e LTV usam só coortes com a janela completa (D30 e D90), por isso olham instalações mais antigas que o CPI.",
+          "CAC = gasto ÷ usuários que usaram o cartão em até 14 dias. O CAC usa as coortes dos 28 dias que já completaram 14 dias; ROAS e LTV usam só coortes com a janela completa (D30 e D90), por isso olham instalações mais antigas que o CPI.",
         ],
         table: {
           head: ["Canal", "CAC", "ROAS D30", "ROAS D90", "LTV90/usuário"],
           rows: list.map((c) => {
             const m = mrow(c);
-            return [label(c), brl(m.cac ?? 0), n2(m.roas30 ?? 0) + "×", n2(m.roas90 ?? 0) + "×", brl(m.ltv90 ?? 0)];
+            return [label(c), brl(krow(c).cac ?? 0), n2(m.roas30 ?? 0) + "×", n2(m.roas90 ?? 0) + "×", brl(m.ltv90 ?? 0)];
           }),
         },
         sql: ["01_channel_summary.sql"],
@@ -186,7 +188,7 @@ export function answer(ds: Dataset, question: string): Answer {
         paragraphs: ["Volume e qualidade apontam para lados diferentes: CPI baixo não significa retorno alto."],
         table: {
           head: ["Canal", "Gasto 28d", "CPI", "Ativação", "CAC", "ROAS D90"],
-          rows: CHANNELS.map((c) => [label(c), brl0(row(c).spend), brl(row(c).cpi ?? 0), pct(mrow(c).activationRate ?? 0, 0), brl(mrow(c).cac ?? 0), n2(mrow(c).roas90 ?? 0) + "×"]),
+          rows: CHANNELS.map((c) => [label(c), brl0(row(c).spend), brl(row(c).cpi ?? 0), pct(krow(c).activationRate ?? 0, 0), brl(krow(c).cac ?? 0), n2(mrow(c).roas90 ?? 0) + "×"]),
         },
         sql: ["01_channel_summary.sql"],
         followUps: ["Se eu mover 20% da verba, o que muda?", "Qual canal paga o próprio custo em 90 dias?"],

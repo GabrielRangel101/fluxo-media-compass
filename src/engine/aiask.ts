@@ -156,6 +156,7 @@ function explain(ds: Dataset, topic: Topic): AiAnswer {
   const p = periods(ds);
   const t = totals(ds, p.last28);
   const m = totals(ds, p.mature90);
+  const k = totals(ds, p.cohort14);
   const base = (title: string, text: string, basedOn: string[], sql: string[], follow: string[], cards: AiCard[] = []): AiAnswer =>
     ({ intent: "explicar", title, text, basedOn, sql, cards, followUps: follow });
   switch (topic) {
@@ -164,12 +165,12 @@ function explain(ds: Dataset, topic: Topic): AiAnswer {
     case "cpa":
       return base("Como o CPA de cadastro é calculado", `CPA = gasto ÷ cadastros concluídos (cadastros do backend, atribuídos ao canal pelo MMP). Últimos 28 dias: ${brl0(t.spend)} ÷ ${n0(t.signups)} = ${brl(t.cpaSignup ?? 0)}. Se a plataforma de mídia declara muito mais cadastros que o backend, o evento pode estar duplicado: veja a reconciliação.`, ["Visão geral", "Saúde da coleta"], ["01_channel_summary.sql"], ["Quais checagens de coleta estão quebradas?"]);
     case "cac":
-      return base("Como o CAC é calculado", `CAC = gasto ÷ usuários que usaram o cartão em até 14 dias. Só entram coortes com 14 dias completos, então olha instalações mais antigas que o CPI. Na janela madura (${dm(p.mature90.from)}–${dm(p.mature90.to)}): ${brl(m.cac ?? 0)} por usuário ativado, contra um CPI de ${brl(m.cpi ?? 0)}. A distância entre os dois é a taxa de ativação (${m.activationRate === null ? "—" : pct(m.activationRate, 0)}).`, ["Canais", "Unit economics"], ["01_channel_summary.sql"], ["Qual o CAC por canal?"]);
+      return base("Como o CAC é calculado", `CAC = gasto ÷ usuários que usaram o cartão em até 14 dias. Só entram coortes com 14 dias completos: instalações de ${dm(p.cohort14.from)} a ${dm(p.cohort14.to)}. Nessa janela: ${brl(k.cac ?? 0)} por usuário ativado, contra um CPI de ${brl(k.cpi ?? 0)}. A distância entre os dois é a taxa de ativação (${k.activationRate === null ? "—" : pct(k.activationRate, 0)}). É a mesma janela da tabela de canais e da aba Canais.`, ["Canais", "Unit economics"], ["01_channel_summary.sql"], ["Qual o CAC por canal?"]);
     case "roas":
     case "ltv":
       return base(topic === "roas" ? "Como o ROAS é calculado" : "Como o LTV é calculado", `ROAS D90 = receita acumulada em 90 dias ÷ gasto da mesma coorte. LTV90 = receita D90 ÷ usuários ativados, então LTV90 ÷ CAC é o mesmo número do ROAS D90. Só existe para instalações com 90 dias completos (${dm(p.mature90.from)}–${dm(p.mature90.to)}); no total pago deu ${x2(m.roas90)} e ${m.ltv90 === null ? "—" : brl(m.ltv90)} de LTV90. Acima de 1,00× a coorte pagou o próprio custo.`, ["Canais"], ["01_channel_summary.sql"], ["Qual canal paga o próprio custo em 90 dias?"]);
     case "ativacao":
-      return base("O que é ativação", `Ativação = usuário que usou o cartão em até 14 dias após a instalação. É o evento de valor deste produto: uma conta aberta sem uso gera custo e nenhuma receita. No total pago, ${m.activationRate === null ? "—" : pct(m.activationRate, 0)} das instalações maduras ativaram.`, ["Funil"], ["02_funnel.sql"], ["Onde perco mais no funil?"]);
+      return base("O que é ativação", `Ativação = usuário que usou o cartão em até 14 dias após a instalação. É o evento de valor deste produto: uma conta aberta sem uso gera custo e nenhuma receita. No total pago, ${k.activationRate === null ? "—" : pct(k.activationRate, 0)} das instalações de ${dm(p.cohort14.from)} a ${dm(p.cohort14.to)} ativaram.`, ["Funil"], ["02_funnel.sql"], ["Onde perco mais no funil?"]);
     case "funil":
       return base("Como ler o funil", "Impressões → cliques → instalações → cadastros → KYC → uso do cartão. Cada etapa mostra a conversão em relação à anterior e o custo por unidade (gasto do período ÷ contagem da etapa). O funil usa coortes com 14+ dias para o fundo ser comparável entre canais.", ["Funil"], ["02_funnel.sql"], ["Onde perco mais no funil?"]);
     case "mmp":
@@ -250,19 +251,21 @@ function why(ds: Dataset, q: string): AiAnswer {
   };
 }
 
+const key0IsCac = (q: string) => /\bcac\b/.test(norm(q));
+
 function metric(ds: Dataset, q: string): AiAnswer {
   const n = norm(q);
   const per = parsePeriod(ds, q);
   const chans = channelsIn(q);
   const rows = channelSummary(ds, per.range);
-  const matRows = channelSummary(ds, periods(ds).mature90);
+  const matRows = channelSummary(ds, key0IsCac(q) ? periods(ds).cohort14 : periods(ds).mature90);
   const key = (/\bcac\b/.test(n) ? "cac" : /\broas\b|\bltv\b|paga\w* o proprio|compensa|retorno/.test(n) ? "roas" : /\bcpa\b|cadastr/.test(n) ? "cpa" : /\bcpi\b/.test(n) ? "cpi" : /instal/.test(n) ? "installs" : "spend") as "cac" | "roas" | "cpa" | "cpi" | "installs" | "spend";
   const pick = (r: ChannelMetrics, m: ChannelMetrics) => ({ cac: m.cac, roas: m.roas90, cpa: r.cpaSignup, cpi: r.cpi, installs: r.installs, spend: r.spend })[key];
   const fmtV = (v: number | null) => (v === null ? "—" : key === "installs" ? n0(v) : key === "roas" ? x2(v) : key === "spend" ? brl0(v) : brl(v));
   const name = { cac: "CAC", roas: "ROAS D90", cpa: "CPA de cadastro", cpi: "CPI", installs: "Instalações", spend: "Investimento" }[key];
   const fm: AskFormat = key === "installs" ? "num" : key === "roas" ? "x" : "brl";
   const notice = per.empty ? ` Não há dados para esse período: o painel cobre ${dm(ds.meta.startDate)} a ${dm(ds.meta.refDate)}/${ds.meta.refDate.slice(0, 4)}; mostrei o período todo.` : "";
-  const immature = key === "cac" || key === "roas" ? " CAC e ROAS usam só coortes maduras (14 e 90 dias), independentemente do período pedido." : "";
+  const immature = key === "cac" || key === "roas" ? " CAC usa as coortes dos 28 dias que completaram 14 dias; ROAS usa coortes com 90 dias. Nenhum dos dois muda com o período pedido." : "";
   const list = chans.length ? chans : CHANNELS;
   const cards: AiCard[] = [
     { id: "bars", kind: "bars", title: `${name} por canal`, format: fm, rows: list.map((c) => ({ label: CHANNEL_LABEL[c], value: pick(rowFor(rows, c), rowFor(matRows, c)) ?? 0 })) },

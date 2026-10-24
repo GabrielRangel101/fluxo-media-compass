@@ -24,6 +24,9 @@ export interface ResponseCurve {
   /** mean de instalações por dia nas observações usadas */
   meanDailyInstalls: number;
   lowConfidence: boolean;
+  /** erro-padrão de β e R² do ajuste log-log (critério de confiança da curva) */
+  betaSe: number;
+  r2: number;
   /** pontos usados no ajuste (para gráfico): gasto e instalações por bloco */
   points: { spend: number; installs: number }[];
 }
@@ -68,7 +71,17 @@ export function fitCurves(ds: Dataset): ResponseCurve[] {
     }
     const beta = den > 0 ? num / den : 1;
     const a = Math.exp(my - beta * mx);
-    return { channel, a, beta, meanDailyInstalls: meanDaily, lowConfidence, points: pts };
+    let rss = 0;
+    let tss = 0;
+    for (let k = 0; k < xs.length; k++) {
+      const fit = my + beta * (xs[k]! - mx);
+      rss += (ys[k]! - fit) ** 2;
+      tss += (ys[k]! - my) ** 2;
+    }
+    const n = xs.length;
+    const betaSe = n > 2 && den > 0 ? Math.sqrt(rss / (n - 2) / den) : 0.5;
+    const r2 = tss > 0 ? 1 - rss / tss : 0;
+    return { channel, a, beta, betaSe, r2, meanDailyInstalls: meanDaily, lowConfidence, points: pts };
   });
 }
 
@@ -84,7 +97,7 @@ export interface ChannelEconomics {
   marginalCpi: number | null;
   beta: number;
   lowConfidence: boolean;
-  /** de coorte madura (D90) */
+  /** ativação e CAC: coortes dos 28 dias que completaram D14; LTV90 e ROAS: coortes com D90 */
   activationRate: number | null;
   ltv90: number | null;
   cac: number | null;
@@ -97,17 +110,19 @@ export function channelEconomics(ds: Dataset): ChannelEconomics[] {
   const p = periods(ds);
   const recent = channelSummary(ds, p.last28);
   const mature = channelSummary(ds, p.mature90);
+  const c14 = channelSummary(ds, p.cohort14);
   const curves = fitCurves(ds);
   return CHANNELS.map((channel, i) => {
     const r = recent[i]!;
     const m = mature[i]!;
+    const k = c14[i]!;
     const c = curves[i]!;
-    const valuePerInstall = m.activationRate !== null && m.ltv90 !== null ? m.activationRate * m.ltv90 : null;
+    const valuePerInstall = k.activationRate !== null && m.ltv90 !== null ? k.activationRate * m.ltv90 : null;
     return {
       channel, spend: r.spend, installs: r.installs, cpi: r.cpi,
       marginalCpi: r.cpi !== null ? r.cpi / c.beta : null,
       beta: c.beta, lowConfidence: c.lowConfidence,
-      activationRate: m.activationRate, ltv90: m.ltv90, cac: m.cac, roas90: m.roas90, valuePerInstall,
+      activationRate: k.activationRate, ltv90: m.ltv90, cac: k.cac, roas90: m.roas90, valuePerInstall,
     };
   });
 }
@@ -128,6 +143,8 @@ export interface Scenario {
   activatedDelta: number;
   /** variação do LTV90 esperado das instalações adicionadas/perdidas, em R$ */
   valueDelta: number;
+  /** faixa de 95% (β ± 1,96 erro-padrão: destino e origem em direções opostas) */
+  band: { installs: [number, number]; activated: [number, number]; value: [number, number] };
   outOfBand: boolean;
   capped: boolean;
   warnings: string[];
@@ -162,6 +179,25 @@ export function simulateShift(ds: Dataset, from: Channel, to: Channel, pctReques
     return { channel: e.channel, spendBefore: e.spend, spendAfter: s1, installsBefore: e.installs, installsAfter };
   });
 
+  // Faixa: pessimista = destino com β baixo e origem com β alto; otimista = o inverso.
+  const curveBy = new Map(fitCurves(ds).map((c) => [c.channel, c]));
+  const run = (betaTo: number, betaFrom: number) => {
+    let di = 0, da = 0, dv = 0;
+    for (const e of eco) {
+      const ratio = e.spend > 0 ? newSpend.get(e.channel)! / e.spend : 1;
+      const beta = e.channel === to ? betaTo : e.channel === from ? betaFrom : e.beta;
+      const d = e.installs * Math.pow(ratio, beta) - e.installs;
+      di += d;
+      if (e.activationRate !== null) da += d * e.activationRate;
+      if (e.valuePerInstall !== null) dv += d * e.valuePerInstall;
+    }
+    return { di, da, dv };
+  };
+  const ct = curveBy.get(to)!, cf = curveBy.get(from)!;
+  const lo = run(Math.max(0.05, ct.beta - 1.96 * ct.betaSe), cf.beta + 1.96 * cf.betaSe);
+  const hi = run(Math.min(1.2, ct.beta + 1.96 * ct.betaSe), Math.max(0.05, cf.beta - 1.96 * cf.betaSe));
+  const band = { installs: [Math.min(lo.di, hi.di), Math.max(lo.di, hi.di)] as [number, number], activated: [Math.min(lo.da, hi.da), Math.max(lo.da, hi.da)] as [number, number], value: [Math.min(lo.dv, hi.dv), Math.max(lo.dv, hi.dv)] as [number, number] };
+
   const warnings: string[] = [];
   if (pctRequested > MAX_SHIFT) warnings.push(`Realocação limitada a ${MAX_SHIFT * 100}% do gasto do canal de origem.`);
   if (outOfBand) warnings.push("Algum canal sai da faixa de gasto já observada (60%–160% do atual): a projeção extrapola o histórico.");
@@ -170,7 +206,7 @@ export function simulateShift(ds: Dataset, from: Channel, to: Channel, pctReques
   if (from === to) warnings.push("Origem e destino iguais: nada muda.");
 
   return {
-    from, to, pct, movedAmount: moved, rows, installsDelta, activatedDelta, valueDelta,
+    from, to, pct, movedAmount: moved, rows, installsDelta, activatedDelta, valueDelta, band,
     outOfBand, capped: pctRequested > MAX_SHIFT, warnings,
   };
 }

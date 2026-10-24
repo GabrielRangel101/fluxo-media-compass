@@ -23,6 +23,9 @@ export function OverviewView({ data }: { data: DashboardData }) {
   const tot = data.last[data.last.length - 1]!;
   const prev = data.prev[data.prev.length - 1]!;
   const mat = data.mature[data.mature.length - 1]!;
+  const k14 = data.cohort14[data.cohort14.length - 1]!;
+  const k14p = data.cohort14Prev[data.cohort14Prev.length - 1]!;
+  const c14 = data.per.cohort14;
   const { last28, mature90 } = data.per;
   const recent = data.daily.slice(-28);
   const fill = (xs: (number | null)[]) => { let lastV = 0; return xs.map((x) => (lastV = x ?? lastV)); };
@@ -67,13 +70,13 @@ export function OverviewView({ data }: { data: DashboardData }) {
           ai="kpi-cac"
           label="CAC"
           index={4}
-          num={tot.cac ?? 0}
+          num={k14.cac ?? 0}
           format={fmtBRL}
-          value={fmtBRL(tot.cac ?? 0)}
-          change={rel(tot.cac, prev.cac)}
+          value={fmtBRL(k14.cac ?? 0)}
+          change={rel(k14.cac, k14p.cac)}
           good="down"
-          hint="coortes com 14+ dias"
-          info="Gasto ÷ usuários que usaram o cartão em até 14 dias. Só entram coortes com 14 dias de vida: instalações mais recentes ainda não tiveram tempo de ativar."
+          hint={`coortes ${dm(c14.from)}–${dm(c14.to)}`}
+          info="Gasto ÷ usuários que usaram o cartão em até 14 dias. Só entram instalações que já completaram 14 dias; a janela é a mesma da tabela de canais e da aba Canais."
         />
         <Kpi
           ai="kpi-roas"
@@ -160,12 +163,13 @@ export function OverviewView({ data }: { data: DashboardData }) {
             id="card-canais" ai="card-canais"
             title="Canais · últimos 28 dias"
             sql="01_channel_summary.sql"
-            info="Topo de funil (gasto, instalações, CPI, CPA) usa os últimos 28 dias. Ativação, CAC e ROAS D90 usam coortes maduras e, por isso, vêm de instalações mais antigas (mai–jul para o ROAS)."
+            info="Topo de funil (gasto, instalações, CPI, CPA) usa os últimos 28 dias. Ativação e CAC usam as coortes dos 28 dias que já completaram 14 dias; o ROAS D90 usa coortes com 90 dias completos (mai–jul). As mesmas janelas valem na aba Canais."
           >
             <DataTable head={["Canal", "Gasto", "Instalações", "CPI", "Δ CPI", "CPI corrigido", "CPA", "Ativação", "CAC", "ROAS D90"]}>
               {data.last.map((r, i) => {
                 const p = data.prev[i]!;
                 const m = data.mature[i]!;
+                const k = data.cohort14[i]!;
                 const isTotal = r.channel === "paid_total";
                 return (
                   <tr key={r.channel} className={cn(isTotal && "font-semibold")}>
@@ -176,8 +180,8 @@ export function OverviewView({ data }: { data: DashboardData }) {
                     <td><DeltaPill change={rel(r.cpi, p.cpi)} good="down" /></td>
                     <td className="tnum">{(() => { const c = data.corrections.find((x) => x.channel === r.channel); return c && c.cpi !== null ? <span title={`Estimativa: soma ~${fmtInt(c.lost28)} instalações iOS que o MMP deixou de atribuir.`}>{fmtBRL(c.cpi)}<span className="ml-1 text-[10px] text-muted-foreground">est.</span></span> : <span className="text-muted-foreground">—</span>; })()}</td>
                     <td className="tnum">{fmtBRL(r.cpaSignup ?? 0)}</td>
-                    <td className="tnum">{r.activationRate === null ? "—" : fmtPct(r.activationRate, 0)}</td>
-                    <td className="tnum">{r.cac === null ? "—" : fmtBRL(r.cac)}</td>
+                    <td className="tnum">{k.activationRate === null ? "—" : fmtPct(k.activationRate, 0)}</td>
+                    <td className="tnum">{k.cac === null ? "—" : fmtBRL(k.cac)}</td>
                     <td className={cn("tnum", (m.roas90 ?? 0) < 1 ? "text-danger" : "text-positive")}>{m.roas90 === null ? "—" : `${m.roas90.toFixed(2).replace(".", ",")}×`}</td>
                   </tr>
                 );
@@ -185,7 +189,7 @@ export function OverviewView({ data }: { data: DashboardData }) {
             </DataTable>
             {data.corrections.map((c) => (
               <p key={`${c.channel}-${c.platform}`} className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                <strong className="text-foreground">{CHANNEL_LABEL[c.channel]} {c.platform === "ios" ? "iOS" : "Android"}:</strong> desde ~{c.onset ? dm(c.onset) : "—"} o MMP perde atribuição. O CPI bruto ({fmtBRL(c.cpiRaw ?? 0)}) está inflado; com ~{fmtInt(c.lost28)} instalações recuperadas seria {fmtBRL(c.cpi ?? 0)}. CAC das coortes maduras: {fmtBRL(c.cacRaw ?? 0)} bruto, {fmtBRL(c.cac ?? 0)} corrigido. {c.roas90Affected ? `ROAS D90: ${c.roas90Raw?.toFixed(2).replace(".", ",")}× bruto, ${c.roas90?.toFixed(2).replace(".", ",")}× corrigido.` : "O ROAS D90 não é afetado: a coorte é anterior ao defeito."} Não pause campanha pelo número bruto.
+                <strong className="text-foreground">{CHANNEL_LABEL[c.channel]} {c.platform === "ios" ? "iOS" : "Android"}:</strong> desde {c.onset ? dm(c.onset) : "—"} o MMP perde atribuição. O CPI bruto ({fmtBRL(c.cpiRaw ?? 0)}) está inflado; com ~{fmtInt(c.lost28)} instalações recuperadas seria {fmtBRL(c.cpi ?? 0)}. CAC das coortes de {dm(c14.from)} a {dm(c14.to)}: {fmtBRL(c.cacRaw ?? 0)} bruto, {fmtBRL(c.cac ?? 0)} corrigido. {c.roas90Affected ? `ROAS D90: ${c.roas90Raw?.toFixed(2).replace(".", ",")}× bruto, ${c.roas90?.toFixed(2).replace(".", ",")}× corrigido.` : "O ROAS D90 não é afetado: a coorte é anterior ao defeito."} Não pause campanha pelo número bruto.
               </p>
             ))}
             <p className="mt-2 text-xs text-muted-foreground">

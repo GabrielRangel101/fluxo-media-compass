@@ -11,9 +11,9 @@ import { cn } from "@/lib/utils";
 const x2 = (v: number | null) => (v === null ? "—" : `${v.toFixed(2).replace(".", ",")}×`);
 const select = "h-9 rounded-md border bg-background px-2 text-sm";
 
-function Simulator() {
-  const [from, setFrom] = useState<Channel>("dv360");
-  const [to, setTo] = useState<Channel>("google_ads");
+function Simulator({ data }: { data: DashboardData }) {
+  const [from, setFrom] = useState<Channel>(data.bestShift?.from ?? "dv360");
+  const [to, setTo] = useState<Channel>(data.bestShift?.to ?? "google_ads");
   const [pct, setPct] = useState(20);
   const s = simulate(from, to, pct / 100);
   const changed = s.rows.filter((r) => Math.abs(r.spendAfter - r.spendBefore) > 0.5);
@@ -46,9 +46,9 @@ function Simulator() {
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Kpi label="Verba movida" value={fmtBRLCompact(s.movedAmount)} hint="em 28 dias" />
-        <Kpi label="Instalações" value={fmtSignedInt(Math.round(s.installsDelta))} />
-        <Kpi label="Ativações" value={fmtSignedInt(Math.round(s.activatedDelta))} />
-        <Kpi label="LTV90 esperado" value={`${s.valueDelta >= 0 ? "+" : "−"}${fmtBRLCompact(Math.abs(s.valueDelta))}`} />
+        <Kpi label="Instalações" value={fmtSignedInt(Math.round(s.installsDelta))} hint={`faixa ${fmtSignedInt(Math.round(s.band.installs[0]))} a ${fmtSignedInt(Math.round(s.band.installs[1]))}`} />
+        <Kpi label="Ativações" value={fmtSignedInt(Math.round(s.activatedDelta))} hint={`faixa ${fmtSignedInt(Math.round(s.band.activated[0]))} a ${fmtSignedInt(Math.round(s.band.activated[1]))}`} />
+        <Kpi label="LTV90 esperado" value={`${s.valueDelta >= 0 ? "+" : "−"}${fmtBRLCompact(Math.abs(s.valueDelta))}`} hint={`faixa ${fmtBRLCompact(s.band.value[0])} a ${fmtBRLCompact(s.band.value[1])}`} />
       </div>
 
       {changed.length > 0 ? (
@@ -83,6 +83,10 @@ function Simulator() {
             </tr>
           ))}
         </DataTable>
+      ) : null}
+      <p className="mt-3 text-xs text-muted-foreground">A faixa vem da incerteza da elasticidade de cada curva (β ± 1,96 erro-padrão): o canal de destino com β baixo e a origem com β alto dão o limite inferior, e o inverso dá o superior. Ela não cobre mudanças de leilão ou de criativo.</p>
+      {(from === "google_ads" || to === "google_ads") && data.googleBrand[0] ? (
+        <p className="mt-2 text-xs text-warning">⚠ O Google inclui busca de marca ({fmtPct(data.googleBrand[0].spendShare, 0)} do gasto), que capta demanda que já existia e satura rápido. A curva do canal mistura as duas partes; sem a marca o ROAS D90 é {x2(data.googleBrand[1]?.roas90 ?? null)}, e não {x2(data.googleBrand[0].roas90)}. Trate o ganho de mover verba para o Google como teto.</p>
       ) : null}
       <p className="mt-3 text-xs text-muted-foreground">A projeção usa a curva de resposta de cada canal (retorno decrescente), não um retorno linear. Mesmo assim, comece com um teste de 5 a 10% da verba antes de mover mais.</p>
       {s.warnings.length > 0 ? (
@@ -126,7 +130,7 @@ function ResponseCurve({ data }: { data: DashboardData }) {
       <div className="mt-2 grid grid-cols-3 gap-3 text-xs">
         <div><div className="text-muted-foreground">β (elasticidade)</div><div className="tnum text-base font-semibold">{c.beta.toFixed(2).replace(".", ",")}</div></div>
         <div><div className="text-muted-foreground">CPI médio → marginal</div><div className="tnum text-base font-semibold">{fmtBRL(e.cpi ?? 0)} → {fmtBRL(e.marginalCpi ?? 0)}</div></div>
-        <div><div className="text-muted-foreground">Confiança</div><div className="text-base font-semibold">{c.lowConfidence ? "Baixa (poucas instalações/dia)" : "Boa"}</div></div>
+        <div title="Boa = pelo menos 20 instalações por dia e R² do ajuste log-log de 0,6 ou mais. Abaixo disso a curva usa blocos semanais e a incerteza de β cresce."><div className="text-muted-foreground">Confiança</div><div className="text-base font-semibold">{c.lowConfidence || c.r2 < 0.6 ? "Baixa" : "Boa"}</div><div className="tnum text-[11px] text-muted-foreground">R² {c.r2.toFixed(2).replace(".", ",")} · β ± {(1.96 * c.betaSe).toFixed(2).replace(".", ",")}</div></div>
       </div>
     </Panel>
   );
@@ -135,7 +139,6 @@ function ResponseCurve({ data }: { data: DashboardData }) {
 const ATTR_NOTE: Partial<Record<Channel, string>> = {
   dv360: "Display: parte das instalações vem de view-through, então o retorno atribuído tende a vir inflado. Não compare direto com canais de performance.",
   linkedin_ads: "B2B de ciclo longo e volume pequeno: o D90 pode subestimar o retorno e o intervalo é largo.",
-  meta_ads: "iOS sub-atribuído desde ~22/08. O D90 não é afetado (coorte anterior), mas CPI e CAC recentes são.",
   google_ads: "Inclui busca de marca, que capta demanda que já existia.",
   tiktok_ads: "Topo de funil: parte do efeito pode aparecer depois como orgânico.",
 };
@@ -165,6 +168,9 @@ function ConfidencePanel({ data }: { data: DashboardData }) {
         {data.roasConf.filter((r) => ATTR_NOTE[r.channel]).map((r) => (
           <li key={r.channel}><strong className="text-foreground">{CHANNEL_LABEL[r.channel]}:</strong> {ATTR_NOTE[r.channel]}</li>
         ))}
+        {data.corrections.filter((c) => c.channel === "meta_ads").map((c) => (
+          <li key="meta-corr"><strong className="text-foreground">Meta:</strong> o iOS perde atribuição desde {c.onset ? dmm(c.onset) : "—"}. O D90 não é afetado (coorte anterior), mas CPI e CAC recentes são.</li>
+        ))}
       </ul>
       <h3 className="mb-1 mt-5 text-sm font-semibold">Atribuído × blended</h3>
       <DataTable head={["Coortes", "Horizonte", "ROAS atribuído (mídia paga)", "ROAS blended (toda a receita ÷ gasto pago)", "Receita que o MMP chama de orgânico"]}>
@@ -183,7 +189,31 @@ function ConfidencePanel({ data }: { data: DashboardData }) {
   );
 }
 
+function GoogleBrandPanel({ data }: { data: DashboardData }) {
+  const [marca, sem] = data.googleBrand;
+  if (!marca || !sem) return null;
+  return (
+    <Panel id="card-google-marca" ai="card-google-marca" title="Google Ads: busca de marca × restante" sql="01_channel_summary.sql" info="A busca de marca capta quem já ia chegar ao produto: ROAS alto, CPI baixo e saturação rápida. Misturada com UAC e busca genérica, ela infla o ROAS e o retorno que o simulador atribui ao Google. O CPI marginal vem da curva de resposta ajustada em cada grupo separadamente.">
+      <DataTable head={["Grupo", "Parcela do gasto", "CPI (28 dias)", "CAC", "ROAS D90", "β da curva", "CPI marginal"]}>
+        {[marca, sem].map((g) => (
+          <tr key={g.key}>
+            <td className="whitespace-nowrap">{g.label}</td>
+            <td className="tnum">{fmtPct(g.spendShare, 0)}</td>
+            <td className="tnum">{fmtBRL(g.cpi ?? 0)}</td>
+            <td className="tnum">{fmtBRL(g.cac ?? 0)}</td>
+            <td className="tnum font-medium">{x2(g.roas90)}</td>
+            <td className="tnum">{g.beta.toFixed(2).replace(".", ",")}</td>
+            <td className="tnum">{fmtBRL(g.marginalCpi ?? 0)}</td>
+          </tr>
+        ))}
+      </DataTable>
+      <p className="mt-2 text-xs text-muted-foreground">Para decidir verba no Google, use a linha "{sem.label}": é o retorno que um real a mais, fora da marca, tende a ter. Nenhuma outra aba separa os dois grupos.</p>
+    </Panel>
+  );
+}
+
 export function CanaisView({ data }: { data: DashboardData }) {
+  const corr = (c: Channel) => data.corrections.find((x) => x.channel === c);
   const bars = data.eco.map((e) => ({ name: CHANNEL_LABEL[e.channel], roas: e.roas90 ?? 0, channel: e.channel }));
   return (
     <div className="space-y-4">
@@ -210,15 +240,17 @@ export function CanaisView({ data }: { data: DashboardData }) {
           </div>
         </Panel>
 
-        <Panel id="card-unit" ai="card-unit" title="Unit economics por canal" sql="01_channel_summary.sql" info="CPI e CPI marginal vêm dos últimos 28 dias. Ativação, CAC, LTV90 e ROAS vêm de coortes maduras.">
-          <DataTable head={["Canal", "CPI", "CPI marginal", "Ativação", "CAC", "LTV90", "ROAS D90"]}>
+        <Panel id="card-unit" ai="card-unit" title="Unit economics por canal" sql="01_channel_summary.sql" info="CPI e CPI marginal vêm dos últimos 28 dias. Ativação e CAC usam as coortes dos 28 dias que completaram D14, a mesma janela da aba Geral. LTV90 e ROAS usam coortes com 90 dias. As colunas corrigidas estimam o efeito de atribuição perdida no MMP; o valor bruto continua sendo o oficial.">
+          <DataTable head={["Canal", "CPI", "CPI corrigido", "CPI marginal", "Ativação", "CAC", "CAC corrigido", "LTV90", "ROAS D90"]}>
             {data.eco.map((e) => (
               <tr key={e.channel}>
                 <td className="whitespace-nowrap"><ChannelTag channel={e.channel} /></td>
                 <td className="tnum">{fmtBRL(e.cpi ?? 0)}</td>
+                <td className="tnum">{corr(e.channel)?.cpi != null ? <>{fmtBRL(corr(e.channel)!.cpi!)}<span className="ml-1 text-[10px] text-muted-foreground">est.</span></> : <span className="text-muted-foreground">—</span>}</td>
                 <td className="tnum">{fmtBRL(e.marginalCpi ?? 0)}</td>
                 <td className="tnum">{e.activationRate === null ? "—" : fmtPct(e.activationRate, 0)}</td>
                 <td className="tnum">{fmtBRL(e.cac ?? 0)}</td>
+                <td className="tnum">{corr(e.channel)?.cac != null ? <>{fmtBRL(corr(e.channel)!.cac!)}<span className="ml-1 text-[10px] text-muted-foreground">est.</span></> : <span className="text-muted-foreground">—</span>}</td>
                 <td className="tnum">{fmtBRL(e.ltv90 ?? 0, 0)}</td>
                 <td className="tnum font-medium">{x2(e.roas90)}</td>
               </tr>
@@ -227,8 +259,9 @@ export function CanaisView({ data }: { data: DashboardData }) {
         </Panel>
       </div>
       <ConfidencePanel data={data} />
+      <GoogleBrandPanel data={data} />
       <div className="grid gap-4 xl:grid-cols-2">
-        <Simulator />
+        <Simulator data={data} />
         <ResponseCurve data={data} />
       </div>
     </div>

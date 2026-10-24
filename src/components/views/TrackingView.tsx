@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { CartesianGrid, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
-import { ChannelTag, DataTable, Kpi, Panel, StatusBadge, chart, SizedChart } from "@/components/dashboard/primitives";
-import { fmtSignedPct } from "@/lib/format";
+import { ChannelTag, DataDetails, DataTable, Kpi, Legend, Panel, StatusBadge, chart, SizedChart } from "@/components/dashboard/primitives";
+import { fmtPct, fmtSignedPct } from "@/lib/format";
+import { DEFECTS } from "@/engine/generate";
 import type { DashboardData } from "@/lib/dashboard-data";
 import { RECON_LABEL } from "@/engine/tracking";
 import { CHANNELS } from "@/engine/types";
@@ -32,6 +33,27 @@ export function TrackingView({ data }: { data: DashboardData }) {
         <Kpi label="Em atenção" value={String(tracking.warn)} hint="desvio ≥ 15%" />
         <Kpi label="Saudáveis" value={String(okCount)} hint="dentro do normal" />
       </div>
+
+      <Panel id="card-organico" ai="card-organico" title="Parcela de instalações atribuídas a orgânico, por semana" sql="04_reconciliation.sql" info="Quando a atribuição de mídia paga quebra, as instalações não somem: viram orgânico no MMP. Se a parcela de orgânico sobe sem uma causa real (campanha de marca, imprensa), é perda de atribuição. A linha pontilhada é a média dos primeiros 60 dias, antes de qualquer defeito.">
+        <Legend className="mb-2" items={[{ label: "Orgânico ÷ todas as instalações", color: "var(--primary)", kind: "line" }, { label: "Média dos 60 primeiros dias", color: "var(--muted-foreground)", kind: "dash" }, { label: `Início do defeito do Meta iOS (${dm(DEFECTS.metaIosAttributionLoss.from)})`, color: "var(--danger)", kind: "dash" }]} />
+        <div className="h-52">
+          <SizedChart>{(w, h) => (
+            <LineChart width={w} height={h} data={data.organic.x.map((x, i) => ({ x, share: data.organic.share[i], start: data.organic.weekStarts[i] }))} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke={chart.grid} vertical={false} />
+              <XAxis dataKey="x" tick={chart.tick} tickLine={false} axisLine={false} minTickGap={20} />
+              <YAxis tick={chart.tick} tickLine={false} axisLine={false} width={44} domain={[0, (m: number) => Math.max(0.25, Math.ceil(m * 20) / 20)]} tickFormatter={(v: number) => fmtPct(v, 0)} />
+              <Tooltip {...chart.tooltip} cursor={chart.crosshair} labelFormatter={(d: string) => `Semana de ${d}`} formatter={(v: number) => [fmtPct(v, 1), "Orgânico"]} />
+              <ReferenceLine y={data.organic.baseline} stroke="var(--muted-foreground)" strokeDasharray="4 4" />
+              {(() => { const w0 = data.organic.weekStarts.filter((d) => d <= DEFECTS.metaIosAttributionLoss.from).pop(); const i = w0 ? data.organic.weekStarts.indexOf(w0) : -1; return i >= 0 ? <ReferenceLine x={data.organic.x[i]} stroke="var(--danger)" strokeDasharray="4 3" /> : null; })()}
+              <Line dataKey="share" stroke="var(--primary)" strokeWidth={2.25} dot={{ r: 3 }} isAnimationActive={false} />
+            </LineChart>
+          )}</SizedChart>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Linha de base {fmtPct(data.organic.baseline, 1)}; na última semana, {fmtPct(data.organic.share[data.organic.share.length - 1] ?? 0, 1)}. A subida começa na semana do defeito de atribuição do Meta iOS e não volta: é a confirmação do alerta da Visão geral.
+        </p>
+        <DataDetails head={["Semana", "Instalações", "Orgânico"]} rows={data.organic.x.map((x, i) => [x, String(data.organic.installs[i]), fmtPct(data.organic.share[i]!, 1)]).reverse()} label="Ver as semanas em tabela" />
+      </Panel>
 
       <Panel id="card-mapa" ai="card-mapa" title="Mapa de saúde por canal" info="Cada célula mostra o pior desvio entre as plataformas daquele canal naquela checagem, contra o nível normal do próprio canal. Passe pelo mapa para achar o problema; a tabela abaixo mostra o detalhe.">
         <div className="overflow-x-auto">

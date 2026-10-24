@@ -1,3 +1,5 @@
+import { CHANNEL_LABEL } from "@/engine/types";
+import { fmtBRLCompact } from "@/lib/format";
 import { DataDetails, Legend, Panel, SizedChart } from "@/components/dashboard/primitives";
 import { fmtInt } from "@/lib/format";
 import type { DashboardData } from "@/lib/dashboard-data";
@@ -87,6 +89,23 @@ export function TestesView({ data }: { data: DashboardData }) {
           <li className="rounded-lg bg-secondary p-3"><strong>3 · Significância.</strong> Só então: p &lt; 0,05 declara vencedor.</li>
         </ol>
       </Panel>
+
+      {data.testPlan ? (
+        <Panel id="card-plano-teste" ai="card-plano-teste" title="Próximo teste: validar a realocação antes de mover verba" info="A simulação é uma hipótese. Este plano diz como transformá-la em medição. A duração vem do volume diário do canal de destino e do efeito esperado.">
+          <p className="mb-3 text-sm">
+            Mover {Math.round(data.testPlan.pctMoved * 100)}% da verba de <strong>{CHANNEL_LABEL[data.testPlan.from]}</strong> para <strong>{CHANNEL_LABEL[data.testPlan.to]}</strong> (~{fmtBRLCompact(data.testPlan.movedAmountPerMonth)} por mês), só no grupo tratado.
+          </p>
+          <dl className="grid gap-3 text-sm md:grid-cols-2">
+            <div className="rounded-lg bg-secondary p-3"><dt className="text-xs font-medium text-muted-foreground">Desenho</dt><dd className="mt-1">{data.testPlan.design}</dd></div>
+            <div className="rounded-lg bg-secondary p-3"><dt className="text-xs font-medium text-muted-foreground">Duração</dt><dd className="mt-1">{data.testPlan.underpowered ? `Seriam ${data.testPlan.weeksNeeded} semanas para ver um efeito de ${(data.testPlan.expectedLift * 100).toFixed(0)}% com ~${Math.round(data.testPlan.armDailyInstalls)} instalações por dia em cada braço. Acima de 12 semanas o teste não compensa: aumente a fatia movida ou use um canal de maior volume.` : `${data.testPlan.weeks} semanas, para detectar um efeito de ${(data.testPlan.expectedLift * 100).toFixed(0)}% com ~${Math.round(data.testPlan.armDailyInstalls)} instalações por dia em cada braço.`}</dd></div>
+            <div className="rounded-lg bg-secondary p-3"><dt className="text-xs font-medium text-muted-foreground">Métrica de sucesso</dt><dd className="mt-1">{data.testPlan.primaryMetric}</dd></div>
+            <div className="rounded-lg bg-secondary p-3"><dt className="text-xs font-medium text-muted-foreground">Travas</dt><dd className="mt-1"><ul className="list-disc space-y-1 pl-4">{data.testPlan.guardrails.map((g) => <li key={g}>{g}</li>)}</ul></dd></div>
+          </dl>
+          {data.testPlan.preconditions.length ? (
+            <ul className="mt-3 space-y-1 text-xs text-warning">{data.testPlan.preconditions.map((c) => <li key={c}>⚠ {c}</li>)}</ul>
+          ) : null}
+        </Panel>
+      ) : null}
       <Panel id="card-lift" ai="card-lift" title="Lift por teste, com intervalo de 95%" sql="06_ab_tests.sql" info="Ponto: lift de B sobre A em instalações por impressão. Barra: intervalo de 95%. Quando a barra cruza o zero, o teste não separa A de B. Testes com SRM aparecem em vermelho: a barra não vale, a divisão de tráfego quebrou.">
         <Legend className="mb-2" items={[{ label: "Há vencedor", color: "var(--positive)", kind: "dot" }, { label: "Sem diferença", color: "var(--muted-foreground)", kind: "dot" }, { label: "Amostra insuficiente", color: "var(--warning)", kind: "dot" }, { label: "SRM: não confiável", color: "var(--danger)", kind: "dot" }]} />
         <div style={{ height: 38 * data.tests.length + 34 }}>
