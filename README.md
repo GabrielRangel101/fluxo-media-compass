@@ -87,4 +87,4 @@ Botão **Mesa de análise** no topo ou o ✦ em qualquer KPI/gráfico: o dashboa
 
 ## Modo demo
 
-Abra `/?demo=1` numa tela com 1280 px ou mais: um roteiro percorre o painel sozinho, com cursor e legendas, para gravar o vídeo de apresentação (Mesa de análise, defeitos na linha do tempo, CPI corrigido, orgânico por semana, confiança do ROAS, marca × sem marca, simulador e plano de teste). Esc interrompe.
+Abra `/?demo=1` numa tela com 1024 px ou mais: um roteiro de ~45 s percorre o painel sozinho, com cursor e legendas, para gravar o vídeo de apresentação (Mesa de análise, defeitos na linha do tempo, CPI corrigido, orgânico por semana, confiança do ROAS, marca × sem marca, simulador e plano de teste). Esc interrompe.

@@ -33,8 +33,8 @@ export function DemoTour() {
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    // o roteiro usa o layout de desktop (≥ 1280 px)
-    if ((p.has("demo") || window.location.hash === "#demo") && window.innerWidth >= 1280) setOn(true);
+    // o roteiro usa o layout de desktop (≥ 1024 px)
+    if ((p.has("demo") || window.location.hash === "#demo") && window.innerWidth >= 1024) setOn(true);
   }, []);
 
   useEffect(() => {
@@ -148,12 +148,12 @@ export function DemoTour() {
       }
       void navigate({ to: "/", search: { view } });
       window.scrollTo({ top: 0 });
-      await sleep(650);
+      await sleep(500);
     };
     /** rola até o card (a página do Fluxo rola; a da Gazeta cabia na tela) */
     const show = async (el: HTMLElement, block: ScrollLogicalPosition = "center") => {
       el.scrollIntoView({ block, behavior: "smooth" });
-      await sleep(750);
+      await sleep(600);
     };
     const card = (id: string) => find($(`[data-ai-target="${id}"]`));
     const chartIn = async (id: string, index = 0) => find(() => document.querySelectorAll(`[data-ai-target="${id}"] .recharts-wrapper`)[index]);
@@ -174,125 +174,81 @@ export function DemoTour() {
     const mesa = () => find(byText("header button", "Mesa de análise"));
     const say = (title: string, sub?: string) => setCaption({ title, sub });
 
+    // Roteiro de ~45 s: um achado por passo, sem repetir o que a legenda já disse.
     const run = async () => {
       aiStore.close();
       aiStore.clear();
       void navigate({ to: "/", search: { view: "geral" } });
       window.scrollTo({ top: 0 });
       place(window.innerWidth * 0.5, window.innerHeight * 0.7);
-      await sleep(1800);
+      await sleep(1200);
 
-      // 1 · abertura
-      say("Fluxo Media Compass", "Mídia paga, aquisição de app e saúde da coleta · dados sintéticos, motor de métricas próprio");
-      for (const k of ["kpi-spend", "kpi-installs", "kpi-cpi", "kpi-cac", "kpi-roas"]) {
-        await moveToEl(await card(k), 360);
-        await sleep(120);
+      // 1 · abertura (≈3 s)
+      say("Fluxo Media Compass", "Mídia paga, aquisição de app e saúde da coleta, com dados sintéticos");
+      for (const k of ["kpi-spend", "kpi-cpi", "kpi-roas"]) {
+        await moveToEl(await card(k), 330);
+        await sleep(250);
       }
 
-      // 2 · Mesa de análise
-      say("Mesa de análise", "Clique num card e a IA lê o número com você");
-      await click(await mesa(), 550);
-      await sleep(500);
-      await click(await card("kpi-cpi"), 550);
-      await waitAi(2600);
-
-      say("Por que o CPI subiu?", "A IA decompõe em leilão, criativo e conversão, e avisa quando é defeito de coleta");
+      // 2 · Mesa de análise (≈10 s)
+      say("Mesa de análise", "Clique num card ou pergunte; os números vêm do motor, a IA só explica");
+      await click(await mesa(), 400);
+      await sleep(300);
+      await click(await card("kpi-cpi"), 400);
+      await waitAi(1800);
       const input = (await find($("#ai-question-input"))) as HTMLInputElement;
-      await click(input, 550);
-      await type(input, "Por que o CPI do Meta subiu?", 26);
-      await sleep(150);
+      await click(input, 400);
+      await type(input, "Por que o CPI do Meta subiu?", 22);
       hideOld();
       input.form?.requestSubmit();
-      await waitAi(3400);
+      await waitAi(2600);
+      await click(await mesa(), 350);
+      await sleep(250);
 
-      say("Pergunte qualquer coisa sobre os dados", "Os números vêm do motor; a IA não calcula nem inventa");
-      await type(input, "Qual canal paga o próprio custo em 90 dias?", 24);
-      await sleep(150);
-      hideOld();
-      input.form?.requestSubmit();
-      await waitAi(3200);
-
-      await click(await mesa(), 500);
-      await sleep(400);
-
-      // 3 · visão geral: defeitos na linha do tempo e CPI corrigido
-      say("Defeitos de coleta marcados na linha do tempo", "O CPI do Meta sobe a partir de 24/08: é atribuição perdida, não leilão");
-      const serie = await card("card-serie");
-      await show(serie);
-      await scrub(await chartIn("card-serie", 1), 0.35, 0.95, 0.5, 1700);
-
-      say("CPI corrigido ao lado do bruto", "Ninguém pausa campanha por causa de um defeito de tracking");
+      // 3 · o achado (≈7 s)
+      say("O CPI do Meta subiu por defeito de coleta, não por leilão", "Marcadores na linha do tempo e CPI corrigido ao lado do bruto");
+      await show(await card("card-serie"));
+      await scrub(await chartIn("card-serie", 1), 0.45, 0.95, 0.5, 1300);
       const canais = await card("card-canais");
       await show(canais);
       const th = [...canais.querySelectorAll("th")].find((t) => t.textContent?.includes("corrigido"));
-      if (th instanceof HTMLElement) await moveToEl(th, 550);
-      await sleep(1400);
+      if (th instanceof HTMLElement) await moveToEl(th, 400);
+      await sleep(1000);
 
-      say("Leilão e criativo por canal", "CPM, CTR, CPC e instalações por clique contra os 28 dias anteriores");
-      const leilao = await card("card-leilao");
-      await show(leilao);
-      await moveToEl(leilao, 550, 0.4, 0.5);
-      await sleep(1300);
-
-      // 4 · saúde da coleta
+      // 4 · a prova (≈5 s)
       say("A prova: o orgânico sobe na mesma semana", "Instalações que o MMP deixa de atribuir viram orgânico");
       await go("tracking");
-      const org = await card("card-organico");
-      await show(org);
-      await scrub(await chartIn("card-organico"), 0.15, 0.9, 0.45, 1600);
-      const recon = document.querySelector<HTMLElement>('[data-ai-target="card-recon"]');
-      if (recon) {
-        say("Reconciliação GA4 × AppsFlyer × backend", "Cada fonte contra o nível normal do próprio canal");
-        await show(recon);
-        await moveToEl(recon, 550, 0.45, 0.4);
-        await sleep(1200);
-      }
+      await show(await card("card-organico"));
+      await scrub(await chartIn("card-organico"), 0.3, 0.9, 0.45, 1300);
 
-      // 5 · canais e verba
-      say("Retorno com intervalo de confiança e projeção", "Amostra baixa sinalizada; D90 real ao lado do projetado");
+      // 5 · decisão de verba (≈8 s)
+      say("Retorno com intervalo de confiança", "Amostra baixa sinalizada e Google separado entre marca e restante");
       await go("canais");
       const conf = await card("card-confianca");
       await show(conf);
-      await moveToEl(conf, 550, 0.55, 0.35);
-      await sleep(1400);
-
-      say("Google: busca de marca separada do restante", "A marca infla o ROAS; para decidir verba vale a linha sem marca");
-      const marca = await card("card-google-marca");
-      await show(marca);
-      await moveToEl(marca, 550, 0.6, 0.55);
-      await sleep(1400);
-
-      say("Simulador de verba com faixa de incerteza", "Curva de resposta por canal, retorno decrescente, mesmo orçamento total");
+      await moveToEl(conf, 400, 0.55, 0.35);
+      await sleep(1000);
+      say("Simulador de verba com faixa de incerteza", "Retorno decrescente por canal, mesmo orçamento total");
       const sim = await card("card-simulador");
       await show(sim, "start");
       const range = sim.querySelector<HTMLInputElement>('input[type="range"]');
-      if (range) {
-        await slide(range, 20, 40, 5);
-        await sleep(900);
-        await slide(range, 40, 20, -5);
-      }
-      await sleep(800);
+      if (range) await slide(range, 20, 40, 10);
+      await sleep(900);
+      if (range) setNative(range, "20");
 
-      // 6 · testes
-      say("Antes de mover verba, um teste", "Holdout geográfico, duração pelo volume, métrica de sucesso e travas");
+      // 6 · teste (≈4 s)
+      say("Antes de mover verba, um teste", "Holdout geográfico, duração pelo volume e travas");
       await go("testes");
       const plano = await card("card-plano-teste");
       await show(plano, "start");
-      await moveToEl(plano, 550, 0.5, 0.45);
-      await sleep(1500);
-      const lift = document.querySelector<HTMLElement>('[data-ai-target="card-lift"]');
-      if (lift) {
-        say("Lift por teste, com intervalo de 95%", "Barra que cruza o zero não separa A de B; SRM em vermelho");
-        await show(lift);
-        await moveToEl(lift, 550, 0.6, 0.55);
-        await sleep(1400);
-      }
+      await moveToEl(plano, 400, 0.5, 0.45);
+      await sleep(1300);
 
-      // 7 · fechamento
+      // 7 · fechamento (≈3 s)
       await go("geral");
-      say("fluxo-media-compass.lovable.app", "Gabriel Rangel · dashboard web, motor de métricas testado, IA sobre dados determinísticos");
-      await moveTo(window.innerWidth * 0.5, window.innerHeight * 0.7, 600);
-      await sleep(3200);
+      say("fluxo-media-compass.lovable.app", "Gabriel Rangel, analista de dados");
+      await moveTo(window.innerWidth * 0.5, window.innerHeight * 0.7, 400);
+      await sleep(2600);
     };
 
     run()
