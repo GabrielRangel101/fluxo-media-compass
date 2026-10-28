@@ -188,12 +188,7 @@
 /* ---------------- Mesa de análise como camada sobre o dashboard ---------------- */
 .ai-scrim { position: fixed; inset: 0; z-index: 40; background: hsl(222 40% 5% / 0.7); }
 html.ai-on [data-ai-target] { position: relative; z-index: 41; cursor: pointer; outline: 1.5px solid hsl(168 70% 48% / 0.8); outline-offset: 2px; }
-html.ai-on [data-ai-target]::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: 0 0 20px 2px hsl(168 70% 48% / 0.4); opacity: 0; will-change: opacity; animation: ai-glow 2.4s ease-in-out infinite; }
-html.ai-on [data-ai-target].ai-focused::after { animation: none; display: none; }
-html.ai-on [data-ai-target]::after { content: "✦ analisar"; position: absolute; top: 6px; right: 8px; z-index: 2; padding: 1px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; color: #fff; background: hsl(168 72% 27%); pointer-events: none; }
 html.ai-on [data-ai-target].ai-focused { z-index: 52; outline: 2px solid hsl(0 0% 100% / 0.9); animation: none; box-shadow: 0 0 0 6px hsl(168 70% 48% / 0.25), 0 0 48px hsl(196 80% 50% / 0.35); }
-html.ai-on [data-ai-target].ai-focused::after { content: none; }
-@keyframes ai-glow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 .ai-gen-card { background: linear-gradient(160deg, hsl(222 34% 15%), hsl(222 38% 10%)); border: 1px solid hsl(168 50% 50% / 0.35); box-shadow: 0 18px 44px -12px hsl(222 60% 3% / 0.7); color: var(--foreground); }
 .ai-panel { background: linear-gradient(180deg, hsl(222 32% 14% / 0.97), hsl(222 36% 10% / 0.97)); border: 1px solid hsl(168 50% 50% / 0.35); box-shadow: 0 20px 60px -20px hsl(222 60% 3% / 0.9); }
 .ai-thread-pulse { animation: ai-pulse 2.6s linear infinite; }
@@ -217,7 +212,7 @@ html.ai-on [data-ai-target].ai-focused::after { content: none; }
 .ai-dots { display: inline-flex; gap: 4px; } .ai-dots i { width: 5px; height: 5px; background: var(--primary); border-radius: 50%; animation: ai-dot 1s infinite alternate; } .ai-dots i:nth-child(2) { animation-delay: .2s; } .ai-dots i:nth-child(3) { animation-delay: .4s; }
 @keyframes ai-dot { from { opacity: .25; transform: translateY(0); } to { opacity: 1; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) {
-  html.ai-on [data-ai-target], .ai-thread-pulse, .ai-dots i { animation: none; }
+  .ai-thread-pulse, .ai-dots i { animation: none; }
 }
 
 /* modo demo (?demo=1): esconde o cursor real; o roteiro desenha o seu */
