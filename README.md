@@ -2,7 +2,7 @@
 
 Dashboard de **mídia paga, aquisição de app e saúde da coleta** para a *Fluxo*, uma fintech **fictícia** (conta digital + cartão). Todos os dados são **100% sintéticos**, gerados por uma simulação determinística (seed fixa), sem nenhuma informação real.
 
-Projeto de portfólio de Gabriel Rangel. Mesma filosofia do dashboard da Gazeta Meridiano: motor de métricas próprio e testado, e uma "mesa de análise" em que **a IA nunca calcula números**, só escolhe a análise e redige.
+Projeto de portfólio de **Gabriel Rangel** · [LinkedIn](https://www.linkedin.com/in/gabriel-rangel-a954ba26a/) · [GitHub](https://github.com/GabrielRangel101) · [App ao vivo](https://fluxo-media-compass.lovable.app) · [Demo automática](https://fluxo-media-compass.lovable.app/?demo=1). Mesma filosofia do dashboard da Gazeta Meridiano: motor de métricas próprio e testado, e uma "mesa de análise" em que **a IA nunca calcula números**, só escolhe a análise e redige.
 
 ## O que ele responde
 
@@ -19,7 +19,7 @@ Projeto de portfólio de Gabriel Rangel. Mesma filosofia do dashboard da Gazeta 
 ## Como rodar o motor (só Node ≥ 22.18, zero dependências)
 
 ```bash
-node --test "tests/*.test.ts"   # 20 testes: motor + equivalência SQL × TypeScript
+node --test "tests/*.test.ts"   # 33 testes: motor + equivalência SQL × TypeScript
 node scripts/build-db.ts        # gera data/fluxo.sqlite e CSVs (DBeaver, Power BI, Looker Studio)
 sqlite3 data/fluxo.sqlite < sql/01_channel_summary.sql   # exige passar os parâmetros (:from, :to, :ref, :platform)
 ```
@@ -33,7 +33,7 @@ bun dev          # abre em http://localhost:3000 (a rota é gerada em src/routeT
 
 Abas (`/?view=`): `geral`, `canais` (curva de resposta + simulador de verba), `funil`, `testes`, `tracking`, `tagbook`, `sql` (`&file=04_reconciliation.sql`). A UI lê dados só via `src/lib/dashboard-data.ts`.
 
-> **Estado de verificação.** Motor, pacote SQL e testes (`node --test "tests/*.test.ts"`, 20 testes) foram executados e passam. A interface foi escrita e checada por tipos contra o motor, mas **ainda não foi compilada nem aberta no navegador** (o ambiente de criação não tinha acesso ao npm). Se `bun dev` mostrar erro, ele deve ser pontual de import ou de props.
+> **Estado de verificação.** Motor, pacote SQL e testes (`node --test "tests/*.test.ts"`, 33 testes) passam. A interface está publicada em https://fluxo-media-compass.lovable.app e foi aberta no navegador; os testes automatizados cobrem o motor e o SQL, não os componentes de tela.
 
 ## Pacote SQL (`/sql`)
 

@@ -7,13 +7,15 @@ import type { ViewId } from "@/lib/dashboard-data";
 import { ThemeToggle } from "./ThemeToggle";
 import { VIEWS } from "./views";
 
-/** Autoria. Para incluir o LinkedIn, preencha `linkedin` com a URL do perfil. */
+/** Autoria (mesma assinatura nos três dashboards do portfólio). */
 const AUTHOR = {
   name: "Gabriel Rangel",
   role: "Analista de dados",
-  github: "https://github.com/GabrielRangel101/fluxo-media-compass",
-  linkedin: "" as string,
+  repo: "https://github.com/GabrielRangel101/fluxo-media-compass",
+  github: "https://github.com/GabrielRangel101",
+  linkedin: "https://www.linkedin.com/in/gabriel-rangel-a954ba26a/",
 };
+const LINK = "underline-offset-2 hover:text-foreground hover:underline";
 
 export function AppShell({ view, brand, refLabel, brokenCount, children }: { view: ViewId; brand: string; refLabel: string; brokenCount: number; children: ReactNode }) {
   const { active: open } = useAi();
@@ -28,6 +30,9 @@ export function AppShell({ view, brand, refLabel, brokenCount, children }: { vie
               Mídia, aquisição de app e saúde da coleta. Dados sintéticos até {refLabel}.
             </span>
           </div>
+          <a href={AUTHOR.linkedin} target="_blank" rel="noreferrer" className="hidden shrink-0 text-xs text-muted-foreground hover:text-foreground lg:block" title="Autor do projeto">
+            por <span className="font-semibold text-foreground">{AUTHOR.name}</span>
+          </a>
           <button
             type="button"
             aria-pressed={open}
@@ -77,8 +82,9 @@ export function AppShell({ view, brand, refLabel, brokenCount, children }: { vie
             Projeto de portfólio de <strong className="font-semibold text-foreground">{AUTHOR.name}</strong>, {AUTHOR.role.toLowerCase()}. Todos os dados são sintéticos e não vêm de nenhuma empresa real.
           </p>
           <p className="flex items-center gap-4">
-            {AUTHOR.linkedin ? <a href={AUTHOR.linkedin} target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">LinkedIn</a> : null}
-            <a href={AUTHOR.github} target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-foreground hover:underline">Código no GitHub</a>
+            <a href={AUTHOR.linkedin} target="_blank" rel="noreferrer" className={LINK}>LinkedIn</a>
+            <a href={AUTHOR.github} target="_blank" rel="noreferrer" className={LINK}>GitHub</a>
+            <a href={AUTHOR.repo} target="_blank" rel="noreferrer" className={LINK}>Código deste projeto</a>
           </p>
         </div>
       </footer>

@@ -81,6 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Fluxo · Media Compass" },
+      { name: "author", content: "Gabriel Rangel" },
       { name: "description", content: "Mídia, aquisição de app e saúde da coleta de uma fintech fictícia (dados sintéticos)." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

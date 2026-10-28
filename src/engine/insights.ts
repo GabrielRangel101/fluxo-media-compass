@@ -2,6 +2,7 @@
 
 import { bestShift, channelEconomics } from "./allocation.ts";
 import { brl, brl0, dm, n2, pct, spct } from "./fmt.ts";
+import { corrections } from "./adjust.ts";
 import { addDays } from "./calendar.ts";
 import { channelSummary, deltas, funnel, periods } from "./metrics.ts";
 import { readTests } from "./experiments.ts";
@@ -51,14 +52,15 @@ export function buildInsights(ds: Dataset): Insight[] {
     const ch = cpiChange("meta_ads");
     // Estimativa: quantas instalações iOS o MMP "deveria" ter, dada a razão do período-base.
     const lost = metaIos.ratioBaseline ? Math.max(0, metaIos.a / metaIos.ratioBaseline - metaIos.b) : 0;
-    const win14 = { from: addDays(ds.meta.refDate, -(CURRENT_DAYS - 1)), to: ds.meta.refDate };
-    const meta14 = channelSummary(ds, win14).find((r) => r.channel === "meta_ads")!;
-    const corrected = meta14.spend > 0 && meta14.installs + lost > 0 ? meta14.spend / (meta14.installs + lost) : null;
+    // Mesma janela (28 dias) e mesma estimativa da correção exibida em Canais.
+    const fix = corrections(ds).find((c) => c.channel === "meta_ads" && c.platform === "ios");
+    const cpiRaw = fix?.cpiRaw ?? null, corrected = fix?.cpi ?? null;
+    const lost28 = fix?.lost28 ?? lost;
     out.push({
       id: "trk-meta-ios", severity: "alta", topic: "tracking", view: "tracking", target: "card-recon",
       title: "Meta iOS: o MMP está perdendo atribuição",
-      summary: ch !== null && corrected !== null && meta14.cpi !== null ? `As instalações iOS viraram "orgânico" no AppsFlyer. O CPI aparece como ${brl(meta14.cpi)}; com a atribuição corrigida seria ~${brl(corrected)}.` : `As instalações iOS viraram "orgânico" no AppsFlyer.`,
-      detail: `A razão plataforma ÷ AppsFlyer passou de ${n2(metaIos.ratioBaseline ?? 0)} para ${n2(metaIos.ratioCurrent ?? 0)} (${spct(metaIos.deviation ?? 0)}). As instalações iOS não somem: viram "orgânico" no MMP.${ch !== null && corrected !== null && meta14.cpi !== null ? ` O CPI do Meta subiu ${spct(ch)} em 28 dias; nos últimos ${CURRENT_DAYS} dias ele aparece como ${brl(meta14.cpi)}, e estimo ${brl(corrected)} se as ~${Math.round(lost)} instalações perdidas fossem atribuídas (estimativa pela razão do período-base). Revisar o mapeamento de conversion values do SKAdNetwork.` : " Revisar o mapeamento de conversion values do SKAdNetwork."}`,
+      summary: ch !== null && corrected !== null && cpiRaw !== null ? `As instalações iOS viraram "orgânico" no AppsFlyer. O CPI do Meta Ads aparece como ${brl(cpiRaw)} em 28 dias; com a atribuição corrigida seria ~${brl(corrected)}.` : `As instalações iOS viraram "orgânico" no AppsFlyer.`,
+      detail: `A razão plataforma ÷ AppsFlyer passou de ${n2(metaIos.ratioBaseline ?? 0)} para ${n2(metaIos.ratioCurrent ?? 0)} (${spct(metaIos.deviation ?? 0)}). As instalações iOS não somem: viram "orgânico" no MMP.${ch !== null && corrected !== null && cpiRaw !== null ? ` O CPI do Meta subiu ${spct(ch)} em 28 dias; nos últimos 28 dias ele aparece como ${brl(cpiRaw)}, e estimo ${brl(corrected)} se as ~${Math.round(lost28)} instalações perdidas fossem atribuídas (estimativa pela razão do período-base). Revisar o mapeamento de conversion values do SKAdNetwork.` : " Revisar o mapeamento de conversion values do SKAdNetwork."}`,
     });
   }
   const gSignups = recon.find((r) => r.check === "signups_platform_vs_mmp" && r.channel === "google_ads");
