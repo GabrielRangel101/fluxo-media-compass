@@ -57,11 +57,13 @@ export function AiLayer() {
   const slots = useMemo(() => layoutSlots(region, avoid, focusRect ?? anchor, 6), [region.w, region.h, focusRect?.x, focusRect?.y, focusRect?.w, focusRect?.h]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = items.slice(0, slots.length);
 
-  // linhas seguem o arraste: mede a cada quadro enquanto há cards
+  // linhas seguem os cards: mede por quadro só durante a entrada (~1,3 s) e enquanto há arraste
+  const kickRef = useRef<(ms: number) => void>(() => {});
   useEffect(() => {
-    if (!s.active || vp.mobile || !shown.length) { setPaths([]); return; }
-    let raf = 0, last = "";
+    if (!s.active || vp.mobile || !shown.length) { setPaths([]); kickRef.current = () => {}; return; }
+    let raf = 0, last = "", until = 0;
     const loop = () => {
+      raf = 0;
       const from = s.focusId ? document.querySelector<HTMLElement>(`[data-ai-target="${s.focusId}"]`) : document.getElementById("ai-anchor");
       if (from) {
         const fr = toRect(from.getBoundingClientRect());
@@ -69,11 +71,19 @@ export function AiLayer() {
         const sig = next.map((p) => p.d).join("|");
         if (sig !== last) { last = sig; setPaths(next); }
       }
-      raf = requestAnimationFrame(loop);
+      if (performance.now() < until) raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [s.active, s.focusId, vp.mobile, shown.length]);
+    const kick = (ms: number) => {
+      until = Math.max(until, performance.now() + ms);
+      if (!raf) raf = requestAnimationFrame(loop);
+    };
+    kickRef.current = kick;
+    kick(1300);
+    const onScroll = () => kick(120);
+    addEventListener("scroll", onScroll, { passive: true });
+    addEventListener("resize", onScroll);
+    return () => { cancelAnimationFrame(raf); kickRef.current = () => {}; removeEventListener("scroll", onScroll); removeEventListener("resize", onScroll); };
+  }, [s.active, s.focusId, vp.mobile, vp.w, vp.h, shown.length]);
 
   if (!s.active) return null;
 
@@ -126,6 +136,8 @@ export function AiLayer() {
                   dragConstraints={regionRef}
                   dragMomentum={false}
                   dragElastic={0}
+                  onDrag={() => kickRef.current(120)}
+                  onDragEnd={() => kickRef.current(200)}
                   initial={reduced ? false : { opacity: 0, scale: 0.85, y: 12 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: reduced ? 1 : 0.9 }}
