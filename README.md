@@ -84,3 +84,7 @@ Uma razão entre fontes nunca é comparada a 1: a plataforma **sempre** infla in
 ## Mesa de análise (Modo IA)
 
 Botão **Mesa de análise** no topo ou o ✦ em qualquer KPI/gráfico: o dashboard escurece, o card escolhido fica em foco e os cards gerados (barras, linhas, tabelas, indicadores) se conectam a ele por linhas, arrastáveis. Dá para perguntar qualquer coisa sobre os dados do painel: por que o CPI subiu (decomposição CPM × CTR × conversão), períodos ("últimos 14 dias", "março"), simulação de verba, curva de resposta, coleta/tagbook, testes A/B, funil, iOS × Android, e como cada métrica é calculada. Pergunta fora do escopo recebe uma resposta de escopo, nunca um palpite. Todo número vem do motor (`src/engine/aiask.ts` só roteia e redige; testes em `tests/ai-ask.test.ts`).
+
+## Modo demo
+
+Abra `/?demo=1` numa tela com 1280 px ou mais: um roteiro percorre o painel sozinho, com cursor e legendas, para gravar o vídeo de apresentação (Mesa de análise, defeitos na linha do tempo, CPI corrigido, orgânico por semana, confiança do ROAS, marca × sem marca, simulador e plano de teste). Esc interrompe.

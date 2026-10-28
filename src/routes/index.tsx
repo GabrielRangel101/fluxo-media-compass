@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/shell/AppShell";
 import { AiLayer } from "@/components/ai/AiLayer";
+import { DemoTour } from "@/components/demo/DemoTour";
 import { OverviewView } from "@/components/views/OverviewView";
 import { CanaisView } from "@/components/views/CanaisView";
 import { FunilView } from "@/components/views/FunilView";
@@ -49,6 +50,7 @@ function Index() {
         </div>
       </AppShell>
       <AiLayer />
+      <DemoTour />
     </TooltipProvider>
   );
 }
